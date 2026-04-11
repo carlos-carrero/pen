@@ -10,6 +10,7 @@ import { EditorialSummary } from "@/components/care-journey/editorial-summary"
 import { CuratedUpsell } from "@/components/care-journey/curated-upsell"
 import { SoficcaConsole } from "@/components/care-journey/soficca-console"
 import { PresenterControl } from "@/components/care-journey/presenter-control"
+
 export type JourneyState = "month_0" | "week_6" | "month_3" | "month_6"
 type FlowPhase = "intake" | "evaluation" | "journey"
 
@@ -17,10 +18,59 @@ export default function CareJourneyPage() {
   const [phase, setPhase] = useState<FlowPhase>("intake")
   const [intakeData, setIntakeData] = useState<IntakeData | null>(null)
   const [journeyState, setJourneyState] = useState<JourneyState>("month_0")
+  const [engineDecision, setEngineDecision] = useState<any>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
-  const handleIntakeComplete = (data: IntakeData) => {
+  const handleIntakeComplete = async (data: IntakeData) => {
     setIntakeData(data)
-    setPhase("evaluation")
+    setIsAnalyzing(true)
+
+    try {
+      const comorbidities: string[] = []
+
+      if (data.highBloodPressure) {
+        comorbidities.push("hypertension")
+      }
+
+      if (data.cardiovascular) {
+        comorbidities.push("cardiovascular_disease")
+      }
+
+      const payload = {
+        age: Number(data.age) || 29,
+        norwood_stage: data.norwoodStage || 3,
+        comorbidities: comorbidities.length > 0 ? comorbidities : ["hypertension"]
+      }
+
+      const response = await fetch("http://localhost:8000/api/v1/dermatology/hairloss/evaluate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Evaluation request failed with status ${response.status}`)
+      }
+
+      const decision = await response.json()
+      setEngineDecision(decision)
+    } catch (error) {
+      console.error("Failed to retrieve Soficca decision", error)
+      setEngineDecision({
+        decision_path: "fallback_topical",
+        trace_evidence: {
+          age: Number(data.age) || 29,
+          norwood_stage: data.norwoodStage || 3,
+          comorbidities: ["hypertension"],
+          note: "Backend unavailable. Showing safe fallback decision for demo."
+        }
+      })
+    } finally {
+      setIsAnalyzing(false)
+      setPhase("evaluation")
+    }
   }
 
   const handleEvaluationContinue = () => {
@@ -41,9 +91,11 @@ export default function CareJourneyPage() {
   if (phase === "evaluation" && intakeData) {
     return (
       <main className="min-h-screen bg-[#F6F1E8]">
-        <EvaluationScreen 
-          intakeData={intakeData} 
-          onContinue={handleEvaluationContinue} 
+        <EvaluationScreen
+          intakeData={intakeData}
+          engineDecision={engineDecision}
+          isAnalyzing={isAnalyzing}
+          onContinue={handleEvaluationContinue}
         />
       </main>
     )
@@ -76,9 +128,9 @@ export default function CareJourneyPage() {
         <SoficcaConsole journeyState={journeyState} />
 
         {/* State Switcher - only visible on Week 6 / Month 3 / Month 6 */}
-        <PresenterControl 
-          journeyState={journeyState} 
-          setJourneyState={setJourneyState} 
+        <PresenterControl
+          journeyState={journeyState}
+          setJourneyState={setJourneyState}
         />
       </div>
     </main>
