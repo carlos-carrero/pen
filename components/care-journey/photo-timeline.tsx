@@ -1,36 +1,21 @@
 "use client"
 
 import { Camera, Check } from "lucide-react"
-import type { JourneyState } from "@/app/page"
+import type { PenJourneyStateView } from "@/lib/pen/contracts"
 
 interface PhotoTimelineProps {
-  journeyState: JourneyState
+  journeyView: PenJourneyStateView
 }
 
-const timelineSteps = [
-  { id: "baseline", label: "Baseline", unlockAt: "month_0" },
-  { id: "week_6", label: "Week 6", unlockAt: "week_6" },
-  { id: "month_3", label: "Month 3", unlockAt: "month_3" },
-  { id: "month_6", label: "Month 6", unlockAt: "month_6" }
-]
-
-const stateOrder: JourneyState[] = ["month_0", "week_6", "month_3", "month_6"]
-
-function isUnlocked(stepUnlockAt: string, currentState: JourneyState): boolean {
-  const stepIndex = stateOrder.indexOf(stepUnlockAt as JourneyState)
-  const currentIndex = stateOrder.indexOf(currentState)
-  return currentIndex >= stepIndex
-}
-
-export function PhotoTimeline({ journeyState }: PhotoTimelineProps) {
+export function PhotoTimeline({ journeyView }: PhotoTimelineProps) {
   return (
     <section className="rounded-2xl bg-[#FFFCF8] p-6">
       <h3 className="mb-6 font-mono text-xs font-medium uppercase tracking-wide text-[#9A948C]">
         Progress photos
       </h3>
       <div className="grid grid-cols-4 gap-3">
-        {timelineSteps.map((step) => {
-          const unlocked = isUnlocked(step.unlockAt, journeyState)
+        {journeyView.progress_photos.steps.map((step) => {
+          const unlocked = step.unlocked
           return (
             <div key={step.id} className="flex flex-col gap-2">
               <div

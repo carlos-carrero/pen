@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:unit:build": "tsc -p tsconfig.tests.json",
+    "test:unit:run": "node --test .tmp-tests/tests/*.test.js",
+    "test:unit": "npm run test:unit:build && npm run test:unit:run",
+    "test:unit:clean": "node -e \"require('node:fs').rmSync('.tmp-tests',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

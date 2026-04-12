@@ -1,42 +1,10 @@
 "use client"
 
 import { Droplets, Sparkles, Package, Leaf } from "lucide-react"
-import type { JourneyState } from "@/app/page"
+import type { PenJourneyStateView } from "@/lib/pen/contracts"
 
 interface CuratedUpsellProps {
-  journeyState: JourneyState
-}
-
-const upsellContent: Record<JourneyState, {
-  show: boolean
-  product?: string
-  description?: string
-  icon?: "droplets" | "sparkles" | "package" | "leaf"
-} | null> = {
-  month_0: {
-    show: true,
-    product: "Starter Scalp Support",
-    description: "Chosen to complement your topical routine from the beginning and support comfort during early treatment.",
-    icon: "leaf"
-  },
-  week_6: {
-    show: true,
-    product: "Calming Scalp Serum",
-    description: "Chosen to complement your topical routine and support scalp comfort during early treatment.",
-    icon: "droplets"
-  },
-  month_3: {
-    show: true,
-    product: "Scalp Support Formula",
-    description: "Selected to support consistency and help optimize your current topical routine.",
-    icon: "sparkles"
-  },
-  month_6: {
-    show: true,
-    product: "Hair Maintenance Kit",
-    description: "Designed to help sustain your long-term results and support ongoing topical treatment.",
-    icon: "package"
-  }
+  journeyView: PenJourneyStateView
 }
 
 const iconMap = {
@@ -46,10 +14,10 @@ const iconMap = {
   leaf: Leaf
 }
 
-export function CuratedUpsell({ journeyState }: CuratedUpsellProps) {
-  const content = upsellContent[journeyState]
+export function CuratedUpsell({ journeyView }: CuratedUpsellProps) {
+  const content = journeyView.recommendation
 
-  if (!content?.show) {
+  if (!content.show) {
     return null
   }
 
