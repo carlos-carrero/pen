@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+export const runtime = "nodejs"
+
 const DEFAULT_SOFICCA_BASE_URL = "http://127.0.0.1:8000"
 
 interface ProxyErrorBody {
@@ -9,13 +11,23 @@ interface ProxyErrorBody {
   upstream?: string
 }
 
+interface FetchErrorDetails {
+  name?: string
+  message: string
+  cause?: {
+    message?: string
+    code?: string
+    errno?: number
+    syscall?: string
+  }
+}
+
 function resolveSoficcaBaseUrl(): string {
   const configured = process.env.SOFICCA_BASE_URL?.trim()
   const baseUrl = configured && configured.length > 0 ? configured : DEFAULT_SOFICCA_BASE_URL
   return baseUrl.replace(/\/$/, "")
 }
 
-<<<<<<< HEAD
 async function parseBody(request: Request): Promise<unknown> {
   try {
     return await request.json()
@@ -36,6 +48,30 @@ function tryParseJson(raw: string): unknown {
   }
 }
 
+function getFetchErrorDetails(error: unknown): FetchErrorDetails {
+  if (error instanceof Error) {
+    const cause = error.cause
+
+    return {
+      name: error.name,
+      message: error.message,
+      cause:
+        cause && typeof cause === "object"
+          ? {
+              message: "message" in cause ? String(cause.message) : undefined,
+              code: "code" in cause ? String(cause.code) : undefined,
+              errno: "errno" in cause && typeof cause.errno === "number" ? cause.errno : undefined,
+              syscall: "syscall" in cause ? String(cause.syscall) : undefined,
+            }
+          : undefined,
+    }
+  }
+
+  return {
+    message: "Unknown upstream error",
+  }
+}
+
 export async function POST(request: Request) {
   const baseUrl = resolveSoficcaBaseUrl()
   const upstreamUrl = `${baseUrl}/v1/pen/evaluate`
@@ -49,7 +85,7 @@ export async function POST(request: Request) {
       return NextResponse.json<ProxyErrorBody>(
         {
           error: "Invalid JSON body",
-          details: "Request payload must be valid JSON"
+          details: "Request payload must be valid JSON",
         },
         { status: 400 }
       )
@@ -58,7 +94,7 @@ export async function POST(request: Request) {
     return NextResponse.json<ProxyErrorBody>(
       {
         error: "Unable to parse request body",
-        details: error instanceof Error ? error.message : "Unknown parse error"
+        details: error instanceof Error ? error.message : "Unknown parse error",
       },
       { status: 502 }
     )
@@ -66,25 +102,6 @@ export async function POST(request: Request) {
 
   try {
     const backendResponse = await fetch(upstreamUrl, {
-=======
-export async function POST(request: Request) {
-  let requestBody: unknown
-
-  try {
-    requestBody = await request.json()
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Invalid JSON request body",
-        details: error instanceof Error ? error.message : "Unknown JSON parse error",
-      },
-      { status: 400 }
-    )
-  }
-
-  try {
-    const backendResponse = await fetch(`${resolveSoficcaBaseUrl()}/v1/pen/evaluate`, {
->>>>>>> 276122b (update pen evaluate route)
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -99,7 +116,7 @@ export async function POST(request: Request) {
     if (!backendResponse.ok) {
       console.error("[pen-proxy] Upstream non-OK response", {
         status: backendResponse.status,
-        upstreamUrl
+        upstreamUrl,
       })
 
       return NextResponse.json<ProxyErrorBody>(
@@ -107,10 +124,7 @@ export async function POST(request: Request) {
           error: "Soficca evaluate request failed",
           status: backendResponse.status,
           details: parsed,
-<<<<<<< HEAD
-          upstream: upstreamUrl
-=======
->>>>>>> 276122b (update pen evaluate route)
+          upstream: upstreamUrl,
         },
         { status: backendResponse.status }
       )
@@ -118,27 +132,26 @@ export async function POST(request: Request) {
 
     return NextResponse.json(parsed, { status: backendResponse.status })
   } catch (error) {
-<<<<<<< HEAD
-    const message = error instanceof Error ? error.message : "Unknown upstream error"
+    const fetchError = getFetchErrorDetails(error)
 
     console.error("[pen-proxy] Unable to reach upstream", {
       upstreamUrl,
-      message
+      ...fetchError,
     })
 
     return NextResponse.json<ProxyErrorBody>(
       {
         error: "Unable to reach Soficca evaluate service",
-        details: message,
-        upstream: upstreamUrl
-=======
-    return NextResponse.json(
-      {
-        error: "Unable to reach Soficca evaluate service",
-        details: error instanceof Error ? error.message : "Unknown evaluate proxy error",
->>>>>>> 276122b (update pen evaluate route)
+        details: fetchError,
+        upstream: upstreamUrl,
       },
       { status: 502 }
     )
   }
+}
+
+export const __testables = {
+  resolveSoficcaBaseUrl,
+  tryParseJson,
+  getFetchErrorDetails,
 }
