@@ -6,17 +6,21 @@ import {
   canonicalDemoEvaluateResponse
 } from "../lib/pen/demo-fixture"
 
-test("evaluatePen returns typed response on success", async () => {
+test("evaluatePen calls same-origin proxy and returns typed response", async () => {
   const originalFetch = globalThis.fetch
+  let calledUrl = ""
 
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify(canonicalDemoEvaluateResponse), {
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    calledUrl = String(input)
+    return new Response(JSON.stringify(canonicalDemoEvaluateResponse), {
       status: 200,
       headers: { "Content-Type": "application/json" }
-    })) as typeof fetch
+    })
+  }) as typeof fetch
 
   const response = await evaluatePen(canonicalDemoEvaluateRequest)
 
+  assert.equal(calledUrl, "/api/pen/evaluate")
   assert.equal(
     response.frontend_adapter.evaluation.decision_path,
     canonicalDemoEvaluateResponse.frontend_adapter.evaluation.decision_path

@@ -1,6 +1,6 @@
 import type { PenEvaluateRequest, PenEvaluateResponse } from "./contracts"
 
-const DEFAULT_BASE_URL = "http://localhost:8000"
+const PEN_EVALUATE_PROXY_PATH = "/api/pen/evaluate"
 
 export class PenApiError extends Error {
   constructor(message: string, public readonly status?: number) {
@@ -9,14 +9,8 @@ export class PenApiError extends Error {
   }
 }
 
-export function resolvePenApiBaseUrl(): string {
-  const envBaseUrl = process.env.NEXT_PUBLIC_SOFICCA_BASE_URL?.trim()
-  const baseUrl = envBaseUrl && envBaseUrl.length > 0 ? envBaseUrl : DEFAULT_BASE_URL
-  return baseUrl.replace(/\/$/, "")
-}
-
 export async function evaluatePen(request: PenEvaluateRequest): Promise<PenEvaluateResponse> {
-  const response = await fetch(`${resolvePenApiBaseUrl()}/v1/pen/evaluate`, {
+  const response = await fetch(PEN_EVALUATE_PROXY_PATH, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
