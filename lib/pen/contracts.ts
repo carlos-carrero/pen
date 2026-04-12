@@ -4,27 +4,25 @@ export type PenTraceEvidenceValue = string | number | boolean | null | string[] 
 export type PenTraceEvidence = Record<string, PenTraceEvidenceValue>
 
 export interface PenEvaluateRequest {
-  intake: {
-    age: number | null
-    norwood_stage: number | null
-    loss_noticed: string | null
-    loss_areas: string[]
-    main_goal: string | null
-    high_blood_pressure: boolean | null
-    cardiovascular_conditions: boolean | null
-    current_medication: boolean | null
-    medication_detail: string | null
-    prior_treatment_use: boolean | null
-    prior_treatment_type: string | null
-    had_side_effects: boolean | null
-    side_effect_detail: string | null
-    scalp_sensitivities: boolean | null
-    scalp_detail: string | null
-    treatment_preference: string | null
-    routine_consistency: string | null
-    priority_factor: string | null
-    baseline_photos_uploaded: boolean
-  }
+  age: number | null
+  norwood_stage: number | null
+  loss_noticed: string | null
+  loss_areas: string[]
+  main_goal: string | null
+  high_blood_pressure: boolean | null
+  cardiovascular_conditions: boolean | null
+  current_medication: boolean | null
+  medication_detail: string | null
+  prior_treatment_use: boolean | null
+  which_treatment: string | null
+  had_side_effects: boolean | null
+  side_effect_detail: string | null
+  scalp_sensitivities: boolean | null
+  scalp_detail: string | null
+  treatment_preference: string | null
+  routine_consistency: string | null
+  priority_factor: string | null
+  baseline_photos_uploaded: boolean
 }
 
 export interface PenEvaluationAdapter {

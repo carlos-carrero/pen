@@ -6,12 +6,15 @@ import {
   canonicalDemoEvaluateResponse
 } from "../lib/pen/demo-fixture"
 
-test("evaluatePen calls same-origin proxy and returns typed response", async () => {
+test("evaluatePen calls same-origin proxy and sends canonical flat payload", async () => {
   const originalFetch = globalThis.fetch
   let calledUrl = ""
+  let rawBody = ""
 
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     calledUrl = String(input)
+    rawBody = String(init?.body ?? "")
+
     return new Response(JSON.stringify(canonicalDemoEvaluateResponse), {
       status: 200,
       headers: { "Content-Type": "application/json" }
@@ -19,8 +22,11 @@ test("evaluatePen calls same-origin proxy and returns typed response", async () 
   }) as typeof fetch
 
   const response = await evaluatePen(canonicalDemoEvaluateRequest)
+  const parsedBody = JSON.parse(rawBody) as Record<string, unknown>
 
   assert.equal(calledUrl, "/api/pen/evaluate")
+  assert.equal("intake" in parsedBody, false)
+  assert.equal(parsedBody.age, canonicalDemoEvaluateRequest.age)
   assert.equal(
     response.frontend_adapter.evaluation.decision_path,
     canonicalDemoEvaluateResponse.frontend_adapter.evaluation.decision_path
