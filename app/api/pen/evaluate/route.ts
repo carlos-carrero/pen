@@ -15,6 +15,7 @@ function resolveSoficcaBaseUrl(): string {
   return baseUrl.replace(/\/$/, "")
 }
 
+<<<<<<< HEAD
 async function parseBody(request: Request): Promise<unknown> {
   try {
     return await request.json()
@@ -65,12 +66,31 @@ export async function POST(request: Request) {
 
   try {
     const backendResponse = await fetch(upstreamUrl, {
+=======
+export async function POST(request: Request) {
+  let requestBody: unknown
+
+  try {
+    requestBody = await request.json()
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Invalid JSON request body",
+        details: error instanceof Error ? error.message : "Unknown JSON parse error",
+      },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const backendResponse = await fetch(`${resolveSoficcaBaseUrl()}/v1/pen/evaluate`, {
+>>>>>>> 276122b (update pen evaluate route)
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
-      cache: "no-store"
+      cache: "no-store",
     })
 
     const raw = await backendResponse.text()
@@ -87,7 +107,10 @@ export async function POST(request: Request) {
           error: "Soficca evaluate request failed",
           status: backendResponse.status,
           details: parsed,
+<<<<<<< HEAD
           upstream: upstreamUrl
+=======
+>>>>>>> 276122b (update pen evaluate route)
         },
         { status: backendResponse.status }
       )
@@ -95,6 +118,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(parsed, { status: backendResponse.status })
   } catch (error) {
+<<<<<<< HEAD
     const message = error instanceof Error ? error.message : "Unknown upstream error"
 
     console.error("[pen-proxy] Unable to reach upstream", {
@@ -107,6 +131,12 @@ export async function POST(request: Request) {
         error: "Unable to reach Soficca evaluate service",
         details: message,
         upstream: upstreamUrl
+=======
+    return NextResponse.json(
+      {
+        error: "Unable to reach Soficca evaluate service",
+        details: error instanceof Error ? error.message : "Unknown evaluate proxy error",
+>>>>>>> 276122b (update pen evaluate route)
       },
       { status: 502 }
     )
