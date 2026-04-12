@@ -1,47 +1,10 @@
 "use client"
 
 import { Activity, CalendarCheck, TrendingUp, CheckCircle2, Camera, Target } from "lucide-react"
-import type { JourneyState } from "@/app/page"
+import type { PenJourneyStateView } from "@/lib/pen/contracts"
 
 interface ProgressStripProps {
-  journeyState: JourneyState
-}
-
-const progressContent: Record<JourneyState, {
-  items: {
-    label: string
-    value: string
-    icon: "activity" | "calendar" | "trending" | "check" | "camera" | "target"
-  }[]
-}> = {
-  month_0: {
-    items: [
-      { label: "Plan status", value: "Activated", icon: "check" },
-      { label: "Baseline photos", value: "Uploaded", icon: "camera" },
-      { label: "Next milestone", value: "Week 6 check-in", icon: "target" }
-    ]
-  },
-  week_6: {
-    items: [
-      { label: "Consistency", value: "Strong this month", icon: "activity" },
-      { label: "Latest update", value: "Week 6 check-in", icon: "calendar" },
-      { label: "Progress", value: "Early stabilization", icon: "trending" }
-    ]
-  },
-  month_3: {
-    items: [
-      { label: "Consistency", value: "Excellent", icon: "activity" },
-      { label: "Latest update", value: "Month 3 review", icon: "calendar" },
-      { label: "Progress", value: "Visible response", icon: "trending" }
-    ]
-  },
-  month_6: {
-    items: [
-      { label: "Consistency", value: "Consistent", icon: "activity" },
-      { label: "Latest update", value: "Month 6 evaluation", icon: "calendar" },
-      { label: "Progress", value: "Sustained results", icon: "trending" }
-    ]
-  }
+  journeyView: PenJourneyStateView
 }
 
 const iconMap = {
@@ -53,13 +16,11 @@ const iconMap = {
   target: Target
 }
 
-export function ProgressStrip({ journeyState }: ProgressStripProps) {
-  const content = progressContent[journeyState]
-
+export function ProgressStrip({ journeyView }: ProgressStripProps) {
   return (
     <section className="rounded-2xl bg-[#FFFCF8] p-6">
       <div className="grid grid-cols-3 gap-4">
-        {content.items.map((item, index) => {
+        {journeyView.progress_strip.items.map((item, index) => {
           const IconComponent = iconMap[item.icon]
           return (
             <div key={index} className="flex flex-col gap-3">

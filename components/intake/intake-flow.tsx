@@ -4,7 +4,9 @@ import { useState } from "react"
 import { ChevronLeft, ChevronRight, Check, Upload, Camera } from "lucide-react"
 
 interface IntakeFlowProps {
-  onComplete: (data: IntakeData) => void
+  onComplete: (data: IntakeData) => void | Promise<void>
+  isSubmitting?: boolean
+  submitError?: string | null
 }
 
 export interface IntakeData {
@@ -66,7 +68,7 @@ const norwoodStages = [
   { stage: 7, label: "VII", description: "Most severe pattern" }
 ]
 
-export function IntakeFlow({ onComplete }: IntakeFlowProps) {
+export function IntakeFlow({ onComplete, isSubmitting = false, submitError = null }: IntakeFlowProps) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState<IntakeData>(initialData)
 
@@ -100,11 +102,15 @@ export function IntakeFlow({ onComplete }: IntakeFlowProps) {
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (isSubmitting) {
+      return
+    }
+
     if (step < totalSteps) {
       setStep(step + 1)
     } else {
-      onComplete(data)
+      await onComplete(data)
     }
   }
 
@@ -173,7 +179,7 @@ export function IntakeFlow({ onComplete }: IntakeFlowProps) {
       <div className="mt-8 flex items-center justify-between">
         <button
           onClick={handleBack}
-          disabled={step === 1}
+          disabled={step === 1 || isSubmitting}
           className={`flex items-center gap-2 rounded-lg px-4 py-2.5 font-sans text-sm font-medium transition-all ${
             step === 1
               ? "cursor-not-allowed text-[#C9C2B7]"
@@ -185,17 +191,27 @@ export function IntakeFlow({ onComplete }: IntakeFlowProps) {
         </button>
         <button
           onClick={handleNext}
-          disabled={!canProceed()}
+          disabled={!canProceed() || isSubmitting}
           className={`flex items-center gap-2 rounded-lg px-6 py-2.5 font-sans text-sm font-medium transition-all ${
             canProceed()
               ? "bg-[#2F5D50] text-white hover:bg-[#264A40]"
               : "cursor-not-allowed bg-[#E6DED3] text-[#9A948C]"
           }`}
         >
-          {step === totalSteps ? "Submit" : "Continue"}
+          {isSubmitting ? "Analyzing…" : step === totalSteps ? "Submit" : "Continue"}
           {step !== totalSteps && <ChevronRight className="h-4 w-4" />}
         </button>
       </div>
+
+      {(isSubmitting || submitError) && (
+        <div className="mt-4 text-center">
+          {isSubmitting ? (
+            <p className="font-mono text-xs text-[#5F5A54]">Analyzing your profile with Soficca…</p>
+          ) : (
+            <p className="font-mono text-xs text-[#8C5A5A]">{submitError}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

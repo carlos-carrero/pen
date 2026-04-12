@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { Loader2 } from "lucide-react"
 import type { IntakeData } from "@/components/intake/intake-flow"
+import type { PenEvaluationAdapter } from "@/lib/pen/contracts"
+import { buildEvaluationViewModel } from "@/lib/pen/evaluation-view"
 
 interface EvaluationScreenProps {
   intakeData: IntakeData
-  engineDecision: any
+  evaluation: PenEvaluationAdapter
   isAnalyzing?: boolean
   onContinue: () => void
 }
@@ -35,27 +37,14 @@ const formatValue = (value: unknown) => {
 
 export function EvaluationScreen({
   intakeData,
-  engineDecision,
+  evaluation,
   isAnalyzing = false,
   onContinue
 }: EvaluationScreenProps) {
   const [phase, setPhase] = useState<"reviewing" | "ready">("reviewing")
 
-  const traceEvidence = useMemo(() => {
-    if (!engineDecision || typeof engineDecision !== "object") {
-      return {}
-    }
-
-    const evidence = engineDecision.trace_evidence
-    if (!evidence || typeof evidence !== "object") {
-      return {}
-    }
-
-    return evidence as Record<string, unknown>
-  }, [engineDecision])
-
-  const decisionPath = engineDecision?.decision_path || "pending_review"
-  const hasEvidence = Object.keys(traceEvidence).length > 0
+  const viewModel = useMemo(() => buildEvaluationViewModel(evaluation), [evaluation])
+  const hasEvidence = Object.keys(viewModel.traceEvidence).length > 0
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -68,7 +57,7 @@ export function EvaluationScreen({
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [isAnalyzing, engineDecision])
+  }, [isAnalyzing, evaluation])
 
   return (
     <div className="mx-auto max-w-xl px-6 py-12">
@@ -98,20 +87,16 @@ export function EvaluationScreen({
         ) : (
           <div className="flex flex-col gap-6">
             <div className="space-y-3">
-              <h2 className="font-sans text-xl font-semibold text-[#161616]">
-                Your treatment plan is ready
-              </h2>
+              <h2 className="font-sans text-xl font-semibold text-[#161616]">{viewModel.decisionTitle}</h2>
               <div className="inline-flex items-center rounded-full border border-[#2F5D50]/20 bg-[#2F5D50]/10 px-3 py-1.5">
                 <span className="font-mono text-xs uppercase tracking-wide text-[#2F5D50]">
-                  Decision path: {formatKey(String(decisionPath))}
+                  Decision path: {formatKey(String(viewModel.decisionPath))}
                 </span>
               </div>
             </div>
 
             <div className="rounded-xl border border-[#E6DED3] bg-[#FAF7F2] p-5">
-              <p className="font-sans text-sm leading-relaxed text-[#161616]">
-                This route was selected from your clinical profile and intake context. Your plan can adapt over time as new data is collected.
-              </p>
+              <p className="font-sans text-sm leading-relaxed text-[#161616]">{viewModel.decisionExplanation}</p>
             </div>
 
             {/* Clinical reasoning */}
@@ -127,7 +112,7 @@ export function EvaluationScreen({
 
               <div className="space-y-3">
                 {hasEvidence ? (
-                  Object.entries(traceEvidence).map(([key, value]) => (
+                  Object.entries(viewModel.traceEvidence).map(([key, value]) => (
                     <div
                       key={key}
                       className="flex items-center justify-between border-b border-[#F0EAE0] pb-2 last:border-b-0 last:pb-0"

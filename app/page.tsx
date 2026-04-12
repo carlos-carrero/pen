@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { IntakeFlow, type IntakeData } from "@/components/intake/intake-flow"
 import { EvaluationScreen } from "@/components/evaluation/evaluation-screen"
 import { HeroSection } from "@/components/care-journey/hero-section"
@@ -10,90 +10,80 @@ import { EditorialSummary } from "@/components/care-journey/editorial-summary"
 import { CuratedUpsell } from "@/components/care-journey/curated-upsell"
 import { SoficcaConsole } from "@/components/care-journey/soficca-console"
 import { PresenterControl } from "@/components/care-journey/presenter-control"
+import type { PenEvaluateResponse, PenJourneyStateKey } from "@/lib/pen/contracts"
+import { PenApiError, evaluatePen } from "@/lib/pen/client"
+import { mapIntakeToPenEvaluateRequest } from "@/lib/pen/mapper"
+import {
+  getInitialJourneyState,
+  getPostIntakePhase,
+  selectEvaluationAdapter,
+  selectJourneyStateView
+} from "@/lib/pen/selectors"
 
-export type JourneyState = "month_0" | "week_6" | "month_3" | "month_6"
+export type JourneyState = PenJourneyStateKey
 type FlowPhase = "intake" | "evaluation" | "journey"
 
 export default function CareJourneyPage() {
   const [phase, setPhase] = useState<FlowPhase>("intake")
   const [intakeData, setIntakeData] = useState<IntakeData | null>(null)
   const [journeyState, setJourneyState] = useState<JourneyState>("month_0")
-  const [engineDecision, setEngineDecision] = useState<any>(null)
+  const [penResponse, setPenResponse] = useState<PenEvaluateResponse | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [evaluateError, setEvaluateError] = useState<string | null>(null)
 
   const handleIntakeComplete = async (data: IntakeData) => {
     setIntakeData(data)
+    setEvaluateError(null)
     setIsAnalyzing(true)
 
     try {
-      const comorbidities: string[] = []
-
-      if (data.highBloodPressure) {
-        comorbidities.push("hypertension")
-      }
-
-      if (data.cardiovascular) {
-        comorbidities.push("cardiovascular_disease")
-      }
-
-      const payload = {
-        age: Number(data.age) || 29,
-        norwood_stage: data.norwoodStage || 3,
-        comorbidities: comorbidities.length > 0 ? comorbidities : ["hypertension"]
-      }
-
-      const response = await fetch("http://localhost:8000/api/v1/dermatology/hairloss/evaluate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      })
-
-      if (!response.ok) {
-        throw new Error(`Evaluation request failed with status ${response.status}`)
-      }
-
-      const decision = await response.json()
-      setEngineDecision(decision)
+      const request = mapIntakeToPenEvaluateRequest(data)
+      const response = await evaluatePen(request)
+      setPenResponse(response)
+      setPhase(getPostIntakePhase())
     } catch (error) {
-      console.error("Failed to retrieve Soficca decision", error)
-      setEngineDecision({
-        decision_path: "fallback_topical",
-        trace_evidence: {
-          age: Number(data.age) || 29,
-          norwood_stage: data.norwoodStage || 3,
-          comorbidities: ["hypertension"],
-          note: "Backend unavailable. Showing safe fallback decision for demo."
-        }
-      })
+      setPenResponse(null)
+      if (error instanceof PenApiError) {
+        setEvaluateError("We couldn't complete your evaluation right now. Please try again.")
+        console.error(error.message)
+      } else {
+        setEvaluateError("Something went wrong while evaluating your profile. Please try again.")
+        console.error("Unexpected error while evaluating intake", error)
+      }
     } finally {
       setIsAnalyzing(false)
-      setPhase("evaluation")
     }
   }
 
   const handleEvaluationContinue = () => {
     setPhase("journey")
-    setJourneyState("month_0")
+    setJourneyState(getInitialJourneyState())
   }
 
-  // Intake flow
+  const evaluationAdapter = useMemo(() => selectEvaluationAdapter(penResponse), [penResponse])
+  const journeyView = useMemo(
+    () => selectJourneyStateView(penResponse, journeyState),
+    [penResponse, journeyState]
+  )
+
   if (phase === "intake") {
     return (
       <main className="min-h-screen bg-[#F6F1E8]">
-        <IntakeFlow onComplete={handleIntakeComplete} />
+        <IntakeFlow
+          onComplete={handleIntakeComplete}
+          isSubmitting={isAnalyzing}
+          submitError={evaluateError}
+        />
       </main>
     )
   }
 
-  // Evaluation screen
   if (phase === "evaluation" && intakeData) {
     return (
       <main className="min-h-screen bg-[#F6F1E8]">
         <EvaluationScreen
           intakeData={intakeData}
-          engineDecision={engineDecision}
+          evaluation={evaluationAdapter}
           isAnalyzing={isAnalyzing}
           onContinue={handleEvaluationContinue}
         />
@@ -101,33 +91,27 @@ export default function CareJourneyPage() {
     )
   }
 
-  // Care journey screens
   return (
     <main className="min-h-screen bg-[#F6F1E8]">
       <div className="mx-auto max-w-2xl px-6 py-12 pb-28">
-        {/* Pen Logo/Header */}
         <header className="mb-10">
           <h1 className="font-sans text-xl font-semibold tracking-tight text-[#161616]">
             Pen
           </h1>
         </header>
 
-        {/* Front-Stage UI - Care Journey Screen */}
         <div className="flex flex-col gap-6">
-          <HeroSection journeyState={journeyState} />
-          <ProgressStrip journeyState={journeyState} />
-          <PhotoTimeline journeyState={journeyState} />
-          <EditorialSummary journeyState={journeyState} />
-          <CuratedUpsell journeyState={journeyState} />
+          <HeroSection journeyView={journeyView} />
+          <ProgressStrip journeyView={journeyView} />
+          <PhotoTimeline journeyView={journeyView} />
+          <EditorialSummary journeyView={journeyView} />
+          <CuratedUpsell journeyView={journeyView} />
         </div>
 
-        {/* Subtle Divider */}
         <div className="my-12 border-t border-[#E6DED3]/60" />
 
-        {/* Back-Stage UI - Soficca */}
-        <SoficcaConsole journeyState={journeyState} />
+        <SoficcaConsole journeyView={journeyView} />
 
-        {/* State Switcher - only visible on Week 6 / Month 3 / Month 6 */}
         <PresenterControl
           journeyState={journeyState}
           setJourneyState={setJourneyState}
