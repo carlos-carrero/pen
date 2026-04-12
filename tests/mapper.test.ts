@@ -7,4 +7,6 @@ test("mapIntakeToPenEvaluateRequest maps explicit inputs without defaults", () =
   const request = mapIntakeToPenEvaluateRequest(canonicalDemoIntakeData)
 
   assert.deepEqual(request, canonicalDemoEvaluateRequest)
+  assert.equal("intake" in request, false)
+  assert.equal(request.which_treatment, null)
 })
