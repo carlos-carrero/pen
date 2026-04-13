@@ -31,6 +31,12 @@ const isTraceEvidenceValue = (value: unknown): value is PenTraceEvidenceValue =>
     )
   }
 
+  if (isRecord(value)) {
+    const fieldValid = !("field" in value) || typeof value.field === "string"
+    const reasonValid = !("reason" in value) || typeof value.reason === "string"
+    return fieldValid && reasonValid
+  }
+
   return false
 }
 
