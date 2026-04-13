@@ -25,27 +25,25 @@ export const canonicalDemoIntakeData: IntakeData = {
 }
 
 export const canonicalDemoEvaluateRequest: PenEvaluateRequest = {
-  intake: {
-    age: 29,
-    norwood_stage: 3,
-    loss_noticed: "1-3 years",
-    loss_areas: ["Temples", "Crown"],
-    main_goal: "Improve density",
-    high_blood_pressure: true,
-    cardiovascular_conditions: false,
-    current_medication: false,
-    medication_detail: null,
-    prior_treatment_use: false,
-    prior_treatment_type: null,
-    had_side_effects: null,
-    side_effect_detail: null,
-    scalp_sensitivities: false,
-    scalp_detail: null,
-    treatment_preference: "topical",
-    routine_consistency: "very",
-    priority_factor: "safety",
-    baseline_photos_uploaded: true
-  }
+  age: 29,
+  norwood_stage: 3,
+  loss_noticed: "1-3 years",
+  loss_areas: ["Temples", "Crown"],
+  main_goal: "Improve density",
+  high_blood_pressure: true,
+  cardiovascular_conditions: false,
+  current_medication: false,
+  medication_detail: null,
+  prior_treatment_use: false,
+  which_treatment: "",
+  had_side_effects: false,
+  side_effect_detail: "",
+  scalp_sensitivities: false,
+  scalp_detail: null,
+  treatment_preference: "topical",
+  routine_consistency: "very",
+  priority_factor: "safety",
+  baseline_photos_uploaded: true
 }
 
 export const canonicalDemoEvaluateResponse: PenEvaluateResponse = {
