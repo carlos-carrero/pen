@@ -12,3 +12,14 @@ test("mapIntakeToPenEvaluateRequest maps canonical case with dependent prior-tre
   assert.equal(request.had_side_effects, false)
   assert.equal(request.which_treatment, "")
 })
+
+test("mapIntakeToPenEvaluateRequest normalizes consistency enum and invalid age", () => {
+  const request = mapIntakeToPenEvaluateRequest({
+    ...canonicalDemoIntakeData,
+    age: " ",
+    consistencyLevel: "mostly",
+  })
+
+  assert.equal(request.age, null)
+  assert.equal(request.routine_consistency, "mostly_consistent")
+})

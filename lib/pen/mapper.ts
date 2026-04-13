@@ -7,8 +7,28 @@ const normalizeString = (value: string): string | null => {
 }
 
 const parseAge = (value: string): number | null => {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+const CONSISTENCY_LEVEL_MAP: Record<string, string> = {
+  very: "very_consistent",
+  mostly: "mostly_consistent",
+  simpler: "prefers_simpler_routine",
+}
+
+const normalizeConsistencyLevel = (value: string): string | null => {
+  const normalized = normalizeString(value)
+  if (!normalized) {
+    return null
+  }
+
+  return CONSISTENCY_LEVEL_MAP[normalized] ?? normalized
 }
 
 const mapPriorTreatmentFields = (
@@ -55,7 +75,7 @@ export function mapIntakeToPenEvaluateRequest(data: IntakeData): PenEvaluateRequ
     scalp_sensitivities: data.scalpSensitivities,
     scalp_detail: normalizeString(data.scalpDetail),
     treatment_preference: normalizeString(data.treatmentPreference),
-    routine_consistency: normalizeString(data.consistencyLevel),
+    routine_consistency: normalizeConsistencyLevel(data.consistencyLevel),
     priority_factor: normalizeString(data.priorityFactor),
     baseline_photos_uploaded: data.photosUploaded,
   }
