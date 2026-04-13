@@ -176,6 +176,20 @@ test("buildEvaluationViewModel normalizes structured trace evidence objects for 
   assert.equal(structured.traceRows.some((entry) => entry.value.includes("[object Object]")), false)
 })
 
+test("buildEvaluationViewModel normalizes structured trace evidence values for rendering", () => {
+  const viewModel = buildEvaluationViewModel({
+    decision_path: "topical_treatment",
+    decision_title: "Title",
+    decision_explanation: "Explanation",
+    trace_evidence: {
+      structured_reason: { reason: "safety", rule: "bp" } as unknown as string,
+    },
+  })
+
+  assert.equal(typeof viewModel.traceEvidence.structured_reason, "string")
+  assert.equal(String(viewModel.traceEvidence.structured_reason).includes("[object Object]"), false)
+})
+
 test("flow transition helpers preserve intake->evaluation->journey start", () => {
   assert.equal(getPostIntakePhase(), "evaluation")
   assert.equal(getInitialJourneyState(), "month_0")
