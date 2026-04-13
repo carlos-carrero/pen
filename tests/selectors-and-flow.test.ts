@@ -104,6 +104,33 @@ test("selectJourneyStateView normalizes hero/narrative/recommendation/badge fiel
   assert.equal(stateView.decision_trace_badge.label, "Trace")
 })
 
+test("selectJourneyStateView retains structured trace evidence objects in decision badge", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_0,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Baseline",
+            trace_evidence: {
+              oral_gate: { field: "high_blood_pressure", value: true, reason: "Safety gate" },
+            },
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+  const row = stateView.decision_trace_badge.trace_evidence.oral_gate as { reason?: string } | undefined
+
+  assert.equal(row?.reason, "Safety gate")
+})
+
 test("buildEvaluationViewModel prioritizes adapter fields", () => {
   const viewModel = buildEvaluationViewModel({
     decision_path: "topical_treatment",
@@ -114,6 +141,39 @@ test("buildEvaluationViewModel prioritizes adapter fields", () => {
 
   assert.equal(viewModel.decisionTitle, "Your treatment plan is ready")
   assert.equal(viewModel.decisionPath, "topical_treatment")
+  assert.equal(viewModel.traceRows[0]?.label, "Excluded Option")
+  assert.equal(viewModel.traceRows[0]?.value, "Oral treatment")
+})
+
+test("buildEvaluationViewModel normalizes structured trace evidence objects for readable rows", () => {
+  const viewModel = buildEvaluationViewModel({
+    decision_path: "topical_treatment",
+    decision_title: "Title",
+    decision_explanation: "Explanation",
+    trace_evidence: {} as Record<string, never>,
+  })
+
+  const structured = buildEvaluationViewModel({
+    decision_path: "topical_treatment",
+    decision_title: "Title",
+    decision_explanation: "Explanation",
+    trace_evidence: {
+      blood_pressure_gate: {
+        field: "high_blood_pressure",
+        value: true,
+        reason: "Oral treatment excluded due to high blood pressure",
+      },
+      loss_areas: ["Temples", "Crown"],
+    },
+  })
+
+  const row = structured.traceRows.find((entry) => entry.label === "High Blood Pressure")
+
+  assert.equal(viewModel.traceRows.length, 0)
+  assert.equal(row?.value, "Yes")
+  assert.equal(row?.reason, "Oral treatment excluded due to high blood pressure")
+  assert.equal(structured.traceRows.find((entry) => entry.label === "Loss Areas")?.value, "Temples, Crown")
+  assert.equal(structured.traceRows.some((entry) => entry.value.includes("[object Object]")), false)
 })
 
 test("buildEvaluationViewModel normalizes structured trace evidence values for rendering", () => {
