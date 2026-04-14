@@ -13,27 +13,10 @@ interface EvaluationScreenProps {
   onContinue: () => void
 }
 
-const formatKey = (value: string) =>
+const formatDecisionPath = (value: string) =>
   value
     .replace(/_/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (char) => char.toUpperCase())
-
-const formatValue = (value: unknown) => {
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "—"
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No"
-  }
-
-  if (value === null || value === undefined || value === "") {
-    return "—"
-  }
-
-  return String(value)
-}
 
 export function EvaluationScreen({
   intakeData,
@@ -44,7 +27,7 @@ export function EvaluationScreen({
   const [phase, setPhase] = useState<"reviewing" | "ready">("reviewing")
 
   const viewModel = useMemo(() => buildEvaluationViewModel(evaluation), [evaluation])
-  const hasEvidence = Object.keys(viewModel.traceEvidence).length > 0
+  const hasEvidence = viewModel.traceRows.length > 0
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -90,7 +73,7 @@ export function EvaluationScreen({
               <h2 className="font-sans text-xl font-semibold text-[#161616]">{viewModel.decisionTitle}</h2>
               <div className="inline-flex items-center rounded-full border border-[#2F5D50]/20 bg-[#2F5D50]/10 px-3 py-1.5">
                 <span className="font-mono text-xs uppercase tracking-wide text-[#2F5D50]">
-                  Decision path: {formatKey(String(viewModel.decisionPath))}
+                  Recommended starting plan: {formatDecisionPath(viewModel.decisionPath)}
                 </span>
               </div>
             </div>
@@ -103,22 +86,27 @@ export function EvaluationScreen({
             <div className="rounded-xl border border-[#E6DED3] bg-white p-5">
               <div className="mb-4 flex items-center justify-between border-b border-[#E6DED3] pb-3">
                 <h3 className="font-sans text-sm font-semibold text-[#161616]">
-                  Clinical Reasoning
+                  Why this plan was selected
                 </h3>
                 <span className="font-mono text-[11px] uppercase tracking-wide text-[#9A948C]">
-                  Trace Evidence
+                  Soficca reasoning
                 </span>
               </div>
 
               <div className="space-y-3">
                 {hasEvidence ? (
-                  Object.entries(viewModel.traceEvidence).map(([key, value]) => (
+                  viewModel.traceRows.map((row) => (
                     <div
-                      key={key}
-                      className="flex items-center justify-between border-b border-[#F0EAE0] pb-2 last:border-b-0 last:pb-0"
+                      key={`${row.label}-${row.displayValue}`}
+                      className="border-b border-[#F0EAE0] pb-2 last:border-b-0 last:pb-0"
                     >
-                      <span className="font-mono text-xs text-[#9A948C]">{formatKey(key)}</span>
-                      <span className="text-right font-sans text-sm text-[#5F5A54]">{formatValue(value)}</span>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-mono text-xs text-[#9A948C]">{row.label}</span>
+                        <span className="text-right font-sans text-sm text-[#5F5A54]">{row.displayValue}</span>
+                      </div>
+                      {row.reason && (
+                        <p className="mt-1 font-mono text-[11px] leading-relaxed text-[#9A948C]">{row.reason}</p>
+                      )}
                     </div>
                   ))
                 ) : (

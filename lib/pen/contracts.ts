@@ -1,6 +1,20 @@
 export type PenJourneyStateKey = "month_0" | "week_6" | "month_3" | "month_6"
 
-export type PenTraceEvidenceValue = string | number | boolean | null | string[] | number[] | boolean[]
+export interface PenStructuredTraceEvidence {
+  field?: string
+  value?: unknown
+  reason?: string
+}
+
+export type PenTraceEvidenceValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[]
+  | number[]
+  | boolean[]
+  | PenStructuredTraceEvidence
 export type PenTraceEvidence = Record<string, PenTraceEvidenceValue>
 
 export interface PenEvaluateRequest {

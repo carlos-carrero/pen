@@ -41,7 +41,7 @@ export const canonicalDemoEvaluateRequest: PenEvaluateRequest = {
   scalp_sensitivities: false,
   scalp_detail: null,
   treatment_preference: "topical",
-  routine_consistency: "very",
+  routine_consistency: "very_consistent",
   priority_factor: "safety",
   baseline_photos_uploaded: true
 }
