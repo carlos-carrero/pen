@@ -192,16 +192,16 @@ test("buildEvaluationViewModel prioritizes meaningful rows and humanizes enum va
     },
   })
 
-  assert.equal(viewModel.traceRows.length, 5)
+  assert.equal(viewModel.traceRows.length, 4)
   assert.equal(viewModel.traceRows[0]?.label, "High blood pressure")
   assert.equal(viewModel.traceRows[0]?.displayValue, "Yes")
-  assert.equal(viewModel.traceRows[1]?.label, "Excluded Option")
-  assert.equal(viewModel.traceRows[2]?.label, "Preferred format")
-  assert.equal(viewModel.traceRows[2]?.displayValue, "Topical")
-  assert.equal(viewModel.traceRows[3]?.label, "Daily routine consistency")
-  assert.equal(viewModel.traceRows[3]?.displayValue, "Strong")
-  assert.equal(viewModel.traceRows[4]?.label, "Top priority")
-  assert.equal(viewModel.traceRows[4]?.displayValue, "Safety")
+  assert.equal(viewModel.traceRows[1]?.label, "Preferred format")
+  assert.equal(viewModel.traceRows[1]?.displayValue, "Topical")
+  assert.equal(viewModel.traceRows[2]?.label, "Daily routine consistency")
+  assert.equal(viewModel.traceRows[2]?.displayValue, "Strong")
+  assert.equal(viewModel.traceRows[3]?.label, "Top priority")
+  assert.equal(viewModel.traceRows[3]?.displayValue, "Safety")
+  assert.equal(viewModel.traceRows.some((entry) => entry.label === "Excluded Option"), false)
 })
 
 test("buildEvaluationViewModel generates user-facing safety explanation when key evidence is present", () => {
@@ -218,6 +218,31 @@ test("buildEvaluationViewModel generates user-facing safety explanation when key
 
   assert.match(viewModel.decisionExplanation, /excluded for safety/)
   assert.match(viewModel.decisionExplanation, /safest place to start/)
+})
+
+test("buildEvaluationViewModel maps string booleans and rewrites technical reason text", () => {
+  const viewModel = buildEvaluationViewModel({
+    decision_path: "topical_treatment",
+    decision_title: "Title",
+    decision_explanation: "",
+    trace_evidence: {
+      high_blood_pressure: {
+        field: "high_blood_pressure",
+        value: "true",
+        reason: "Explicitly provided by intake payload.",
+      },
+      prior_treatment_use: {
+        field: "prior_treatment_use",
+        value: "false",
+        reason: "Used for deterministic side-effect safety branching.",
+      },
+    },
+  })
+
+  assert.equal(viewModel.traceRows[0]?.displayValue, "Yes")
+  assert.equal(viewModel.traceRows[0]?.reason, "You reported this in your intake.")
+  assert.equal(viewModel.traceRows[1]?.displayValue, "No")
+  assert.equal(viewModel.traceRows[1]?.reason, "This helps us keep your starting plan safety-first.")
 })
 
 test("flow transition helpers preserve intake->evaluation->journey start", () => {

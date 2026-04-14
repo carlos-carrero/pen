@@ -50,7 +50,6 @@ const VALUE_OVERRIDES: Record<string, Record<string, string>> = {
 
 const PRIORITY_TRACE_FIELDS = [
   "high_blood_pressure",
-  "excluded_option",
   "treatment_preference",
   "routine_consistency",
   "priority_factor",
@@ -58,7 +57,7 @@ const PRIORITY_TRACE_FIELDS = [
   "had_side_effects",
 ]
 
-const MAX_TRACE_ROWS = 5
+const MAX_TRACE_ROWS = 4
 
 const normalizeReason = (value: unknown): string | undefined => {
   if (typeof value !== "string") {
@@ -66,7 +65,27 @@ const normalizeReason = (value: unknown): string | undefined => {
   }
 
   const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
+  if (!trimmed) {
+    return undefined
+  }
+
+  if (trimmed === "Explicitly provided by intake payload.") {
+    return "You reported this in your intake."
+  }
+
+  if (trimmed.includes("support-path or missing-info branching")) {
+    return "This helps us choose a practical starting plan."
+  }
+
+  if (trimmed.includes("deterministic side-effect safety branching")) {
+    return "This helps us keep your starting plan safety-first."
+  }
+
+  if (trimmed.toLowerCase().includes("branch")) {
+    return undefined
+  }
+
+  return trimmed
 }
 
 const formatEvidenceValue = (value: unknown): string => {
@@ -87,6 +106,14 @@ const formatEvidenceValue = (value: unknown): string => {
   }
 
   if (typeof value === "string" || typeof value === "number") {
+    if (typeof value === "string" && value.toLowerCase() === "true") {
+      return "Yes"
+    }
+
+    if (typeof value === "string" && value.toLowerCase() === "false") {
+      return "No"
+    }
+
     return humanizeLabel(String(value)).replace(/^./, (char) => char.toUpperCase())
   }
 
@@ -151,9 +178,16 @@ function buildTraceRows(evidence: PenEvaluationAdapter["trace_evidence"]): Evalu
 }
 
 function buildUserFacingExplanation(evaluation: PenEvaluationAdapter, traceRows: EvaluationTraceRow[]): string {
-  const highBloodPressure = traceRows.find((row) => row.label === "High blood pressure")?.displayValue === "Yes"
-  const excludedOption = traceRows.find((row) => row.label === "Excluded Option")?.displayValue
-  const preferredFormat = traceRows.find((row) => row.label === "Preferred format")?.displayValue
+  const evidence = (evaluation.trace_evidence ?? {}) as Record<string, unknown>
+  const highBloodPressure = evidence.high_blood_pressure === true || evidence.high_blood_pressure === "true"
+  const excludedOption =
+    typeof evidence.excluded_option === "string" ? formatEvidenceValue(evidence.excluded_option) : undefined
+  const preferredFormatFromTrace = traceRows.find((row) => row.label === "Preferred format")?.displayValue
+  const preferredFormatFromEvidence =
+    typeof evidence.treatment_preference === "string"
+      ? VALUE_OVERRIDES.treatment_preference[evidence.treatment_preference] ?? formatEvidenceValue(evidence.treatment_preference)
+      : undefined
+  const preferredFormat = preferredFormatFromTrace ?? preferredFormatFromEvidence
 
   if (highBloodPressure && excludedOption && preferredFormat) {
     return `Because you reported high blood pressure, ${excludedOption.toLowerCase()} was excluded for safety. ${preferredFormat} treatment was selected as your safest place to start.`
