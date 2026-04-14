@@ -73,7 +73,7 @@ export function EvaluationScreen({
               <h2 className="font-sans text-xl font-semibold text-[#161616]">{viewModel.decisionTitle}</h2>
               <div className="inline-flex items-center rounded-full border border-[#2F5D50]/20 bg-[#2F5D50]/10 px-3 py-1.5">
                 <span className="font-mono text-xs uppercase tracking-wide text-[#2F5D50]">
-                  Decision path: {formatDecisionPath(viewModel.decisionPath)}
+                  Recommended starting plan: {formatDecisionPath(viewModel.decisionPath)}
                 </span>
               </div>
             </div>
@@ -86,10 +86,10 @@ export function EvaluationScreen({
             <div className="rounded-xl border border-[#E6DED3] bg-white p-5">
               <div className="mb-4 flex items-center justify-between border-b border-[#E6DED3] pb-3">
                 <h3 className="font-sans text-sm font-semibold text-[#161616]">
-                  Clinical Reasoning
+                  Why this plan was selected
                 </h3>
                 <span className="font-mono text-[11px] uppercase tracking-wide text-[#9A948C]">
-                  Trace Evidence
+                  Soficca reasoning
                 </span>
               </div>
 
@@ -97,12 +97,12 @@ export function EvaluationScreen({
                 {hasEvidence ? (
                   viewModel.traceRows.map((row) => (
                     <div
-                      key={`${row.label}-${row.value}`}
+                      key={`${row.label}-${row.displayValue}`}
                       className="border-b border-[#F0EAE0] pb-2 last:border-b-0 last:pb-0"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span className="font-mono text-xs text-[#9A948C]">{row.label}</span>
-                        <span className="text-right font-sans text-sm text-[#5F5A54]">{row.value}</span>
+                        <span className="text-right font-sans text-sm text-[#5F5A54]">{row.displayValue}</span>
                       </div>
                       {row.reason && (
                         <p className="mt-1 font-mono text-[11px] leading-relaxed text-[#9A948C]">{row.reason}</p>

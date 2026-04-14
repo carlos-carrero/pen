@@ -2,7 +2,7 @@ import type { PenEvaluationAdapter } from "./contracts"
 
 export interface EvaluationTraceRow {
   label: string
-  value: string
+  displayValue: string
   reason?: string
 }
 
@@ -18,6 +18,47 @@ const humanizeLabel = (value: string): string =>
     .replace(/_/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (char) => char.toUpperCase())
+
+const LABEL_OVERRIDES: Record<string, string> = {
+  high_blood_pressure: "High blood pressure",
+  cardiovascular_conditions: "Cardiovascular conditions",
+  treatment_preference: "Preferred format",
+  routine_consistency: "Daily routine consistency",
+  priority_factor: "Top priority",
+  prior_treatment_use: "Prior treatment history",
+  had_side_effects: "Prior side effects",
+}
+
+const VALUE_OVERRIDES: Record<string, Record<string, string>> = {
+  routine_consistency: {
+    very_consistent: "Strong",
+    mostly_consistent: "Mostly consistent",
+    prefers_simpler_routine: "Prefers simpler routine",
+  },
+  treatment_preference: {
+    topical: "Topical",
+    oral: "Oral",
+    either: "Open to either",
+  },
+  priority_factor: {
+    safety: "Safety",
+    convenience: "Convenience",
+    results: "Visible results",
+    maintenance: "Long-term maintenance",
+  },
+}
+
+const PRIORITY_TRACE_FIELDS = [
+  "high_blood_pressure",
+  "excluded_option",
+  "treatment_preference",
+  "routine_consistency",
+  "priority_factor",
+  "prior_treatment_use",
+  "had_side_effects",
+]
+
+const MAX_TRACE_ROWS = 5
 
 const normalizeReason = (value: unknown): string | undefined => {
   if (typeof value !== "string") {
@@ -46,7 +87,7 @@ const formatEvidenceValue = (value: unknown): string => {
   }
 
   if (typeof value === "string" || typeof value === "number") {
-    return String(value)
+    return humanizeLabel(String(value)).replace(/^./, (char) => char.toUpperCase())
   }
 
   if (typeof value === "object") {
@@ -68,58 +109,70 @@ const formatEvidenceValue = (value: unknown): string => {
 }
 
 function buildTraceRows(evidence: PenEvaluationAdapter["trace_evidence"]): EvaluationTraceRow[] {
-  return Object.entries((evidence ?? {}) as Record<string, unknown>).map(([key, rawValue]) => {
+  const rows = Object.entries((evidence ?? {}) as Record<string, unknown>).map(([key, rawValue]) => {
     if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
       const structured = rawValue as Record<string, unknown>
       const labelSource =
         typeof structured.field === "string" && structured.field.trim().length > 0 ? structured.field : key
       const valueSource = "value" in structured ? structured.value : rawValue
+      const fieldKey = typeof labelSource === "string" ? labelSource : key
+      const rawDisplayValue = formatEvidenceValue(valueSource)
+      const displayValue =
+        typeof valueSource === "string" && VALUE_OVERRIDES[fieldKey]?.[valueSource]
+          ? VALUE_OVERRIDES[fieldKey][valueSource]
+          : rawDisplayValue
 
       return {
-        label: humanizeLabel(labelSource),
-        value: formatEvidenceValue(valueSource),
+        label: LABEL_OVERRIDES[fieldKey] ?? humanizeLabel(fieldKey),
+        displayValue,
         reason: normalizeReason(structured.reason),
       }
     }
 
+    const rawDisplayValue = formatEvidenceValue(rawValue)
+    const displayValue =
+      typeof rawValue === "string" && VALUE_OVERRIDES[key]?.[rawValue] ? VALUE_OVERRIDES[key][rawValue] : rawDisplayValue
+
     return {
-      label: humanizeLabel(key),
-      value: formatEvidenceValue(rawValue),
+      label: LABEL_OVERRIDES[key] ?? humanizeLabel(key),
+      displayValue,
     }
   })
-}
 
-const normalizeTraceValue = (value: unknown): string | number | boolean | null | string[] => {
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null) {
-    return value
-  }
+  const priorityRows = PRIORITY_TRACE_FIELDS
+    .map((field) => rows.find((row) => row.label === (LABEL_OVERRIDES[field] ?? humanizeLabel(field))))
+    .filter((row): row is EvaluationTraceRow => row !== undefined)
 
-  if (Array.isArray(value)) {
-    return value.map((entry) => {
-      if (typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
-        return String(entry)
-      }
-
-      return JSON.stringify(entry)
-    })
-  }
-
-  return JSON.stringify(value)
-}
-
-function normalizeTraceEvidence(evidence: PenEvaluationAdapter["trace_evidence"]): PenEvaluationAdapter["trace_evidence"] {
-  return Object.fromEntries(
-    Object.entries(evidence ?? {}).map(([key, value]) => [key, normalizeTraceValue(value)])
+  const remainingRows = rows.filter(
+    (row) => !priorityRows.some((priorityRow) => priorityRow.label === row.label && priorityRow.displayValue === row.displayValue)
   )
+
+  return [...priorityRows, ...remainingRows].slice(0, MAX_TRACE_ROWS)
+}
+
+function buildUserFacingExplanation(evaluation: PenEvaluationAdapter, traceRows: EvaluationTraceRow[]): string {
+  const highBloodPressure = traceRows.find((row) => row.label === "High blood pressure")?.displayValue === "Yes"
+  const excludedOption = traceRows.find((row) => row.label === "Excluded Option")?.displayValue
+  const preferredFormat = traceRows.find((row) => row.label === "Preferred format")?.displayValue
+
+  if (highBloodPressure && excludedOption && preferredFormat) {
+    return `Because you reported high blood pressure, ${excludedOption.toLowerCase()} was excluded for safety. ${preferredFormat} treatment was selected as your safest place to start.`
+  }
+
+  if (evaluation.decision_explanation && evaluation.decision_explanation.trim().length > 0) {
+    return evaluation.decision_explanation
+  }
+
+  return "Your plan was selected from your intake profile and safety context. It can adapt over time as new progress data is collected."
 }
 
 export function buildEvaluationViewModel(evaluation: PenEvaluationAdapter): EvaluationViewModel {
+  const traceRows = buildTraceRows(evaluation.trace_evidence ?? {})
+
   return {
     decisionPath: evaluation.decision_path || "pending_review",
     decisionTitle: evaluation.decision_title || "Your treatment plan is ready",
-    decisionExplanation:
-      evaluation.decision_explanation ||
-      "This route was selected from your clinical profile and intake context. Your plan can adapt over time as new data is collected.",
-    traceRows: buildTraceRows(evaluation.trace_evidence ?? {})
+    decisionExplanation: buildUserFacingExplanation(evaluation, traceRows),
+    traceRows,
   }
 }

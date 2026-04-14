@@ -142,7 +142,7 @@ test("buildEvaluationViewModel prioritizes adapter fields", () => {
   assert.equal(viewModel.decisionTitle, "Your treatment plan is ready")
   assert.equal(viewModel.decisionPath, "topical_treatment")
   assert.equal(viewModel.traceRows[0]?.label, "Excluded Option")
-  assert.equal(viewModel.traceRows[0]?.value, "Oral treatment")
+  assert.equal(viewModel.traceRows[0]?.displayValue, "Oral Treatment")
 })
 
 test("buildEvaluationViewModel normalizes structured trace evidence objects for readable rows", () => {
@@ -167,27 +167,57 @@ test("buildEvaluationViewModel normalizes structured trace evidence objects for 
     },
   })
 
-  const row = structured.traceRows.find((entry) => entry.label === "High Blood Pressure")
+  const row = structured.traceRows.find((entry) => entry.label === "High blood pressure")
 
   assert.equal(viewModel.traceRows.length, 0)
-  assert.equal(row?.value, "Yes")
+  assert.equal(row?.displayValue, "Yes")
   assert.equal(row?.reason, "Oral treatment excluded due to high blood pressure")
-  assert.equal(structured.traceRows.find((entry) => entry.label === "Loss Areas")?.value, "Temples, Crown")
-  assert.equal(structured.traceRows.some((entry) => entry.value.includes("[object Object]")), false)
+  assert.equal(structured.traceRows.find((entry) => entry.label === "Loss Areas")?.displayValue, "Temples, Crown")
+  assert.equal(structured.traceRows.some((entry) => entry.displayValue.includes("[object Object]")), false)
 })
 
-test("buildEvaluationViewModel normalizes structured trace evidence values for rendering", () => {
+test("buildEvaluationViewModel prioritizes meaningful rows and humanizes enum values", () => {
   const viewModel = buildEvaluationViewModel({
     decision_path: "topical_treatment",
     decision_title: "Title",
-    decision_explanation: "Explanation",
+    decision_explanation: "",
     trace_evidence: {
-      structured_reason: { reason: "safety", rule: "bp" } as unknown as string,
+      random_signal: "engine_state",
+      treatment_preference: "topical",
+      routine_consistency: "very_consistent",
+      priority_factor: "safety",
+      high_blood_pressure: true,
+      excluded_option: "oral treatment",
+      prior_treatment_use: false,
     },
   })
 
-  assert.equal(typeof viewModel.traceEvidence.structured_reason, "string")
-  assert.equal(String(viewModel.traceEvidence.structured_reason).includes("[object Object]"), false)
+  assert.equal(viewModel.traceRows.length, 5)
+  assert.equal(viewModel.traceRows[0]?.label, "High blood pressure")
+  assert.equal(viewModel.traceRows[0]?.displayValue, "Yes")
+  assert.equal(viewModel.traceRows[1]?.label, "Excluded Option")
+  assert.equal(viewModel.traceRows[2]?.label, "Preferred format")
+  assert.equal(viewModel.traceRows[2]?.displayValue, "Topical")
+  assert.equal(viewModel.traceRows[3]?.label, "Daily routine consistency")
+  assert.equal(viewModel.traceRows[3]?.displayValue, "Strong")
+  assert.equal(viewModel.traceRows[4]?.label, "Top priority")
+  assert.equal(viewModel.traceRows[4]?.displayValue, "Safety")
+})
+
+test("buildEvaluationViewModel generates user-facing safety explanation when key evidence is present", () => {
+  const viewModel = buildEvaluationViewModel({
+    decision_path: "topical_treatment",
+    decision_title: "Title",
+    decision_explanation: "technical explanation",
+    trace_evidence: {
+      high_blood_pressure: true,
+      excluded_option: "oral treatment",
+      treatment_preference: "topical",
+    },
+  })
+
+  assert.match(viewModel.decisionExplanation, /excluded for safety/)
+  assert.match(viewModel.decisionExplanation, /safest place to start/)
 })
 
 test("flow transition helpers preserve intake->evaluation->journey start", () => {
