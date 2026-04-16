@@ -14,6 +14,8 @@ const RECOMMENDATION_ICONS = new Set(["droplets", "sparkles", "package", "leaf"]
 type JourneyIcon = PenJourneyStateView["progress_strip"]["items"][number]["icon"]
 type RecommendationIcon = NonNullable<PenJourneyStateView["recommendation"]["icon"]>
 
+type JourneyViewSource = "live" | "fallback"
+
 const isJourneyIcon = (value: unknown): value is JourneyIcon =>
   typeof value === "string" && JOURNEY_ICONS.has(value)
 
@@ -40,15 +42,19 @@ const isTraceEvidenceValue = (value: unknown): value is PenTraceEvidenceValue =>
   return false
 }
 
-const normalizeTraceEvidence = (value: unknown, fallback: PenTraceEvidence): PenTraceEvidence => {
+const normalizeTraceEvidence = (
+  value: unknown,
+  fallback: PenTraceEvidence,
+  preferEmptyObjectWhenInvalid = false
+): PenTraceEvidence => {
   if (!isRecord(value)) {
-    return fallback
+    return preferEmptyObjectWhenInvalid ? {} : fallback
   }
 
   const entries = Object.entries(value).filter(([, entryValue]) => isTraceEvidenceValue(entryValue))
 
   if (entries.length === 0) {
-    return fallback
+    return preferEmptyObjectWhenInvalid ? {} : fallback
   }
 
   return Object.fromEntries(entries) as PenTraceEvidence
@@ -128,7 +134,8 @@ function normalizePhotoSteps(
 
 function normalizeJourneyStateView(
   rawState: unknown,
-  fallback: PenJourneyStateView
+  fallback: PenJourneyStateView,
+  source: JourneyViewSource
 ): PenJourneyStateView {
   if (!isRecord(rawState)) {
     return fallback
@@ -144,6 +151,8 @@ function normalizeJourneyStateView(
     isRecommendationIcon(recommendationIcon)
       ? recommendationIcon
       : fallback.recommendation.icon
+
+  const shouldPreferEmptyLiveTrace = source === "live"
 
   return {
     hero: {
@@ -174,7 +183,8 @@ function normalizeJourneyStateView(
       state_label: readString(rawBadge.state_label, fallback.decision_trace_badge.state_label),
       trace_evidence: normalizeTraceEvidence(
         rawBadge.trace_evidence,
-        fallback.decision_trace_badge.trace_evidence
+        fallback.decision_trace_badge.trace_evidence,
+        shouldPreferEmptyLiveTrace
       ),
     },
   }
@@ -184,14 +194,23 @@ export function selectEvaluationAdapter(response: PenEvaluateResponse | null): P
   return response?.frontend_adapter?.evaluation ?? fallbackFrontendAdapter.evaluation
 }
 
+export function selectJourneyViewSource(
+  response: PenEvaluateResponse | null,
+  state: PenJourneyStateKey
+): JourneyViewSource {
+  const rawState = response?.frontend_adapter?.journey?.[state]
+  return isRecord(rawState) ? "live" : "fallback"
+}
+
 export function selectJourneyStateView(
   response: PenEvaluateResponse | null,
   state: PenJourneyStateKey
 ): PenJourneyStateView {
   const fallback = fallbackFrontendAdapter.journey[state]
   const rawState = response?.frontend_adapter?.journey?.[state]
+  const source = selectJourneyViewSource(response, state)
 
-  return normalizeJourneyStateView(rawState, fallback)
+  return normalizeJourneyStateView(rawState, fallback, source)
 }
 
 export function getPostIntakePhase(): "evaluation" {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { IntakeFlow, type IntakeData } from "@/components/intake/intake-flow"
 import { EvaluationScreen } from "@/components/evaluation/evaluation-screen"
 import { HeroSection } from "@/components/care-journey/hero-section"
@@ -22,7 +22,8 @@ import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
-  selectJourneyStateView
+  selectJourneyStateView,
+  selectJourneyViewSource
 } from "@/lib/pen/selectors"
 
 export type JourneyState = PenJourneyStateKey
@@ -86,6 +87,22 @@ export default function CareJourneyPage() {
     () => selectJourneyStateView(penResponse, journeyState),
     [penResponse, journeyState]
   )
+  const journeyViewSource = useMemo(
+    () => selectJourneyViewSource(penResponse, journeyState),
+    [penResponse, journeyState]
+  )
+
+  useEffect(() => {
+    if (!PEN_DEBUG_ENABLED || phase !== "journey") {
+      return
+    }
+
+    console.debug("[pen-debug] journey source", {
+      journey_state: journeyState,
+      source: journeyViewSource,
+      trace_keys: Object.keys(journeyView.decision_trace_badge.trace_evidence ?? {}),
+    })
+  }, [phase, journeyState, journeyViewSource, journeyView])
 
   if (phase === "intake") {
     return (
