@@ -89,7 +89,7 @@ export function EvaluationScreen({
                   Why this plan was selected
                 </h3>
                 <span className="font-mono text-[11px] uppercase tracking-wide text-[#9A948C]">
-                  Soficca reasoning
+                  Powered by Soficca
                 </span>
               </div>
 
