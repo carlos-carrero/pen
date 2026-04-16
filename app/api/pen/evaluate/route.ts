@@ -3,6 +3,16 @@ import { NextResponse } from "next/server"
 export const runtime = "nodejs"
 
 const DEFAULT_SOFICCA_BASE_URL = "http://127.0.0.1:8000"
+const PEN_DEBUG_PAYLOAD = process.env.PEN_DEBUG_PAYLOAD === "1"
+const BRANCH_FIELDS = [
+  "cardiovascular_conditions",
+  "prior_treatment_use",
+  "had_side_effects",
+  "scalp_sensitivities",
+  "routine_consistency",
+  "priority_factor",
+  "treatment_preference",
+] as const
 
 interface ProxyErrorBody {
   error: string
@@ -72,6 +82,15 @@ function getFetchErrorDetails(error: unknown): FetchErrorDetails {
   }
 }
 
+function extractBranchFields(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    return {}
+  }
+
+  const record = value as Record<string, unknown>
+  return Object.fromEntries(BRANCH_FIELDS.map((field) => [field, record[field]]))
+}
+
 export async function POST(request: Request) {
   const baseUrl = resolveSoficcaBaseUrl()
   const upstreamUrl = `${baseUrl}/v1/pen/evaluate`
@@ -100,6 +119,10 @@ export async function POST(request: Request) {
     )
   }
 
+  if (PEN_DEBUG_PAYLOAD) {
+    console.info("[pen-debug][proxy] incoming request branch fields", extractBranchFields(requestBody))
+  }
+
   try {
     const backendResponse = await fetch(upstreamUrl, {
       method: "POST",
@@ -112,6 +135,23 @@ export async function POST(request: Request) {
 
     const raw = await backendResponse.text()
     const parsed = tryParseJson(raw)
+
+    if (PEN_DEBUG_PAYLOAD) {
+      const parsedRecord = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null
+      const frontendAdapter =
+        parsedRecord && typeof parsedRecord.frontend_adapter === "object"
+          ? (parsedRecord.frontend_adapter as Record<string, unknown>)
+          : null
+      const evaluation =
+        frontendAdapter && typeof frontendAdapter.evaluation === "object"
+          ? (frontendAdapter.evaluation as Record<string, unknown>)
+          : null
+
+      console.info("[pen-debug][proxy] upstream response summary", {
+        decision_path: evaluation?.decision_path,
+        trace_branch_fields: extractBranchFields(evaluation?.trace_evidence),
+      })
+    }
 
     if (!backendResponse.ok) {
       console.error("[pen-proxy] Upstream non-OK response", {
