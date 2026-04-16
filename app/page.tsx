@@ -14,6 +14,11 @@ import type { PenEvaluateResponse, PenJourneyStateKey } from "@/lib/pen/contract
 import { PenApiError, evaluatePen } from "@/lib/pen/client"
 import { mapIntakeToPenEvaluateRequest } from "@/lib/pen/mapper"
 import {
+  getBranchSnapshotFromIntake,
+  getBranchSnapshotFromRequest,
+  getBranchSnapshotFromTrace,
+} from "@/lib/pen/payload-debug"
+import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
@@ -22,6 +27,7 @@ import {
 
 export type JourneyState = PenJourneyStateKey
 type FlowPhase = "intake" | "evaluation" | "journey"
+const PEN_DEBUG_ENABLED = process.env.NEXT_PUBLIC_PEN_DEBUG === "1"
 
 export default function CareJourneyPage() {
   const [phase, setPhase] = useState<FlowPhase>("intake")
@@ -38,7 +44,22 @@ export default function CareJourneyPage() {
 
     try {
       const request = mapIntakeToPenEvaluateRequest(data)
+      if (PEN_DEBUG_ENABLED) {
+        console.groupCollapsed("[pen-debug] Intake submit payload audit")
+        console.log("raw intake branch fields", getBranchSnapshotFromIntake(data))
+        console.log("mapped request branch fields", getBranchSnapshotFromRequest(request))
+        console.log("mapped request payload", request)
+        console.groupEnd()
+      }
+
       const response = await evaluatePen(request)
+      if (PEN_DEBUG_ENABLED) {
+        console.groupCollapsed("[pen-debug] Evaluate response audit")
+        console.log("decision_path", response.frontend_adapter?.evaluation?.decision_path)
+        console.log("trace branch fields", getBranchSnapshotFromTrace(response))
+        console.log("raw trace evidence", response.frontend_adapter?.evaluation?.trace_evidence)
+        console.groupEnd()
+      }
       setPenResponse(response)
       setPhase(getPostIntakePhase())
     } catch (error) {
