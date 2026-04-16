@@ -5,7 +5,8 @@ import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
-  selectJourneyStateView
+  selectJourneyStateView,
+  selectJourneyViewSource
 } from "../lib/pen/selectors"
 import { buildEvaluationViewModel } from "../lib/pen/evaluation-view"
 import type { PenEvaluateResponse } from "../lib/pen/contracts"
@@ -248,4 +249,33 @@ test("buildEvaluationViewModel maps string booleans and rewrites technical reaso
 test("flow transition helpers preserve intake->evaluation->journey start", () => {
   assert.equal(getPostIntakePhase(), "evaluation")
   assert.equal(getInitialJourneyState(), "month_0")
+})
+
+
+test("selectJourneyViewSource marks live journey payloads as live", () => {
+  assert.equal(selectJourneyViewSource(canonicalDemoEvaluateResponse, "month_0"), "live")
+  assert.equal(selectJourneyViewSource(null, "month_0"), "fallback")
+})
+
+test("selectJourneyStateView does not inject canonical fallback trace evidence when live state exists but trace is missing", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_0,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Baseline",
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.deepEqual(stateView.decision_trace_badge.trace_evidence, {})
 })
