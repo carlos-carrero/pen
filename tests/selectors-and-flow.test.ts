@@ -83,7 +83,7 @@ test("selectJourneyStateView keeps live journey sections empty when malformed in
   assert.equal(stateView.progress_photos.steps.length, 0)
 })
 
-test("selectJourneyStateView derives useful live defaults from evaluation when live state omits hero and recommendation", () => {
+test("selectJourneyStateView does not reconstruct empty live stages from global evaluation fields", () => {
   const response = {
     ...canonicalDemoEvaluateResponse,
     frontend_adapter: {
@@ -103,14 +103,14 @@ test("selectJourneyStateView derives useful live defaults from evaluation when l
 
   const stateView = selectJourneyStateView(response, "month_0")
 
-  assert.equal(stateView.hero.title, "Oral route selected")
-  assert.equal(stateView.hero.subtitle, "Your decision profile favors oral therapy as a practical starting point.")
-  assert.equal(stateView.hero.active_plan_label, "Active plan: Oral Treatment")
-  assert.equal(stateView.narrative.text, "Your decision profile favors oral therapy as a practical starting point.")
+  assert.equal(stateView.hero.title, "Your plan update")
+  assert.equal(stateView.hero.subtitle, "")
+  assert.equal(stateView.hero.active_plan_label, "Active plan")
+  assert.equal(stateView.narrative.text, "")
   assert.equal(stateView.recommendation.show, false)
 })
 
-test("selectJourneyStateView can derive live defaults from top-level decision payload", () => {
+test("selectJourneyStateView does not reconstruct empty live stages from top-level decision payload", () => {
   const response = {
     ...canonicalDemoEvaluateResponse,
     decision: {
@@ -134,14 +134,34 @@ test("selectJourneyStateView can derive live defaults from top-level decision pa
 
   const stateView = selectJourneyStateView(response, "month_0")
 
-  assert.equal(stateView.hero.title, "Combination route selected")
-  assert.equal(stateView.hero.active_plan_label, "Active plan: Combination Route")
-  assert.equal(
-    stateView.narrative.text,
-    "Your risk and consistency profile support a combination start."
-  )
-  assert.equal(stateView.recommendation.show, true)
-  assert.equal(stateView.recommendation.product, "Scalp Support Serum")
+  assert.equal(stateView.hero.title, "Your plan update")
+  assert.equal(stateView.hero.active_plan_label, "Active plan")
+  assert.equal(stateView.narrative.text, "")
+  assert.equal(stateView.recommendation.show, false)
+  assert.equal(stateView.recommendation.product, "")
+})
+
+test("selectJourneyStateView preserves live progress items even when icon is unknown", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_0,
+          progress_strip: [{ label: "Plan status", value: "Activated", icon: "custom_icon" }],
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.progress_strip.items.length, 1)
+  assert.equal(stateView.progress_strip.items[0]?.label, "Plan status")
+  assert.equal(stateView.progress_strip.items[0]?.value, "Activated")
+  assert.equal(stateView.progress_strip.items[0]?.icon, "activity")
 })
 
 

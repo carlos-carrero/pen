@@ -71,89 +71,36 @@ const readString = (value: unknown, fallback: string): string =>
 const readBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback
 
-const humanizeDecisionPath = (value: string): string =>
-  value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-
-const readNestedString = (value: unknown, path: string[]): string | null => {
-  let current: unknown = value
-  for (const key of path) {
-    if (!isRecord(current) || !(key in current)) {
-      return null
-    }
-    current = current[key]
-  }
-
-  return typeof current === "string" && current.trim().length > 0 ? current : null
-}
-
-const deriveLiveJourneyDefaults = (
-  response: PenEvaluateResponse | null,
-  fallback: PenJourneyStateView
-): PenJourneyStateView => {
-  const evaluation = response?.frontend_adapter?.evaluation
-  const decision = isRecord(response?.decision) ? response.decision : null
-
-  const decisionTitle =
-    readNestedString(decision, ["title"]) ??
-    readNestedString(decision, ["decision_title"]) ??
-    (typeof evaluation?.decision_title === "string" && evaluation.decision_title.trim().length > 0
-      ? evaluation.decision_title
-      : null)
-  const decisionExplanation =
-    readNestedString(decision, ["explanation"]) ??
-    readNestedString(decision, ["decision_explanation"]) ??
-    readNestedString(decision, ["decision_rationale", "primary_reason"]) ??
-    (typeof evaluation?.decision_explanation === "string" && evaluation.decision_explanation.trim().length > 0
-      ? evaluation.decision_explanation
-      : null)
-  const decisionPath =
-    readNestedString(decision, ["path"]) ??
-    readNestedString(decision, ["decision_path"]) ??
-    (typeof evaluation?.decision_path === "string" && evaluation.decision_path.trim().length > 0
-      ? evaluation.decision_path
-      : null)
-
-  const recommendation =
-    isRecord(decision?.recommendations) && Array.isArray(decision.recommendations)
-      ? (decision.recommendations.find((entry) => isRecord(entry)) as Record<string, unknown> | undefined)
-      : undefined
-  const recommendationProduct =
-    (typeof recommendation?.title === "string" && recommendation.title.trim().length > 0
-      ? recommendation.title
-      : null) ??
-    (typeof recommendation?.name === "string" && recommendation.name.trim().length > 0
-      ? recommendation.name
-      : null)
-  const recommendationDescription =
-    typeof recommendation?.description === "string" && recommendation.description.trim().length > 0
-      ? recommendation.description
-      : null
+const deriveLiveStageFallback = (rawState: unknown, fallback: PenJourneyStateView): PenJourneyStateView => {
+  const safeState = isRecord(rawState) ? rawState : {}
+  const rawHero = isRecord(safeState.hero) ? safeState.hero : {}
+  const rawNarrative = isRecord(safeState.narrative) ? safeState.narrative : {}
+  const rawRecommendation = isRecord(safeState.recommendation) ? safeState.recommendation : {}
+  const rawBadge = isRecord(safeState.decision_trace_badge) ? safeState.decision_trace_badge : {}
 
   return {
     hero: {
-      title: decisionTitle ?? "Your plan update",
-      subtitle: decisionExplanation ?? "",
-      start_date: "",
-      next_review: "",
-      active_plan_label: decisionPath ? `Active plan: ${humanizeDecisionPath(decisionPath)}` : "Active plan",
+      title: readString(rawHero.title, "Your plan update"),
+      subtitle: readString(rawHero.subtitle, ""),
+      start_date: readString(rawHero.start_date, ""),
+      next_review: readString(rawHero.next_review, ""),
+      active_plan_label: readString(rawHero.active_plan_label, "Active plan"),
     },
     progress_strip: { items: [] },
     progress_photos: { steps: [] },
     narrative: {
-      title: decisionTitle ? "Why this plan was selected" : "Current state",
-      text: decisionExplanation ?? "",
+      title: readString(rawNarrative.title, "Current state"),
+      text: readString(rawNarrative.text, ""),
     },
     recommendation: {
-      show: Boolean(recommendationProduct || recommendationDescription),
-      product: recommendationProduct ?? "",
-      description: recommendationDescription ?? "",
+      show: readBoolean(rawRecommendation.show, false),
+      product: readString(rawRecommendation.product, ""),
+      description: readString(rawRecommendation.description, ""),
       icon: undefined,
     },
     decision_trace_badge: {
-      label: "Decision trace",
-      state_label: fallback.decision_trace_badge.state_label,
+      label: readString(rawBadge.label, "Decision trace"),
+      state_label: readString(rawBadge.state_label, fallback.decision_trace_badge.state_label),
       trace_evidence: {},
     },
   }
@@ -176,11 +123,11 @@ function normalizeProgressItems(
       }
 
       const rawIcon = item.icon
-      const icon = isJourneyIcon(rawIcon) ? rawIcon : null
+      const icon = isJourneyIcon(rawIcon) ? rawIcon : "activity"
       const label = typeof item.label === "string" ? item.label : null
       const value = typeof item.value === "string" ? item.value : null
 
-      if (!icon || !label || !value) {
+      if (!label || !value) {
         return null
       }
 
@@ -229,33 +176,6 @@ function normalizeJourneyStateView(
 ): PenJourneyStateView {
   if (!isRecord(rawState)) {
     return sourceFallback
-  }
-
-  const liveDefaults: PenJourneyStateView = {
-    hero: {
-      title: "Your plan update",
-      subtitle: "Your latest plan details are being prepared.",
-      start_date: "—",
-      next_review: "—",
-      active_plan_label: "Active plan: Pending update",
-    },
-    progress_strip: { items: [] },
-    progress_photos: { steps: [] },
-    narrative: {
-      title: "Current state",
-      text: "No journey narrative has been provided for this state yet.",
-    },
-    recommendation: {
-      show: false,
-      product: "",
-      description: "",
-      icon: undefined,
-    },
-    decision_trace_badge: {
-      label: "Decision trace",
-      state_label: fallback.decision_trace_badge.state_label,
-      trace_evidence: {},
-    },
   }
 
   const sourceFallback = source === "live" ? liveDefaults : fallback
@@ -346,7 +266,7 @@ export function selectJourneyStateView(
   const fallback = fallbackFrontendAdapter.journey[state]
   const rawState = response?.frontend_adapter?.journey?.[state]
   const source = selectJourneyViewSource(response, state)
-  const sourceFallback = source === "live" ? deriveLiveJourneyDefaults(response, fallback) : fallback
+  const sourceFallback = source === "live" ? deriveLiveStageFallback(rawState, fallback) : fallback
 
   return normalizeJourneyStateView(rawState, sourceFallback, source)
 }
