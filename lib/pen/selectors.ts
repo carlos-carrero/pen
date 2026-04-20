@@ -231,6 +231,35 @@ function normalizeJourneyStateView(
     return sourceFallback
   }
 
+  const liveDefaults: PenJourneyStateView = {
+    hero: {
+      title: "Your plan update",
+      subtitle: "Your latest plan details are being prepared.",
+      start_date: "—",
+      next_review: "—",
+      active_plan_label: "Active plan: Pending update",
+    },
+    progress_strip: { items: [] },
+    progress_photos: { steps: [] },
+    narrative: {
+      title: "Current state",
+      text: "No journey narrative has been provided for this state yet.",
+    },
+    recommendation: {
+      show: false,
+      product: "",
+      description: "",
+      icon: undefined,
+    },
+    decision_trace_badge: {
+      label: "Decision trace",
+      state_label: fallback.decision_trace_badge.state_label,
+      trace_evidence: {},
+    },
+  }
+
+  const sourceFallback = source === "live" ? liveDefaults : fallback
+
   const rawHero = isRecord(rawState.hero) ? rawState.hero : {}
   const rawNarrative = isRecord(rawState.narrative) ? rawState.narrative : {}
   const rawRecommendation = isRecord(rawState.recommendation) ? rawState.recommendation : {}
