@@ -5,6 +5,7 @@ export const runtime = "nodejs"
 const DEFAULT_SOFICCA_BASE_URL = "http://127.0.0.1:8000"
 const PEN_DEBUG_PAYLOAD = process.env.PEN_DEBUG_PAYLOAD === "1"
 const BRANCH_FIELDS = [
+  "high_blood_pressure",
   "cardiovascular_conditions",
   "prior_treatment_use",
   "had_side_effects",

@@ -22,7 +22,9 @@ import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
+  selectEvaluationViewSource,
   selectJourneyStateView,
+  selectJourneyTraceSource,
   selectJourneyViewSource
 } from "@/lib/pen/selectors"
 
@@ -83,12 +85,17 @@ export default function CareJourneyPage() {
   }
 
   const evaluationAdapter = useMemo(() => selectEvaluationAdapter(penResponse), [penResponse])
+  const evaluationViewSource = useMemo(() => selectEvaluationViewSource(penResponse), [penResponse])
   const journeyView = useMemo(
     () => selectJourneyStateView(penResponse, journeyState),
     [penResponse, journeyState]
   )
   const journeyViewSource = useMemo(
     () => selectJourneyViewSource(penResponse, journeyState),
+    [penResponse, journeyState]
+  )
+  const journeyTraceSource = useMemo(
+    () => selectJourneyTraceSource(penResponse, journeyState),
     [penResponse, journeyState]
   )
 
@@ -98,11 +105,13 @@ export default function CareJourneyPage() {
     }
 
     console.debug("[pen-debug] journey source", {
+      evaluation_source: evaluationViewSource,
       journey_state: journeyState,
-      source: journeyViewSource,
+      journey_source: journeyViewSource,
+      journey_trace_source: journeyTraceSource,
       trace_keys: Object.keys(journeyView.decision_trace_badge.trace_evidence ?? {}),
     })
-  }, [phase, journeyState, journeyViewSource, journeyView])
+  }, [phase, journeyState, journeyViewSource, journeyTraceSource, evaluationViewSource, journeyView])
 
   if (phase === "intake") {
     return (

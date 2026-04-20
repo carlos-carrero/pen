@@ -11,6 +11,8 @@ interface SoficcaConsoleProps {
 export function SoficcaConsole({ journeyView }: SoficcaConsoleProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const badge = journeyView.decision_trace_badge
+  const traceEntries = Object.entries(badge.trace_evidence ?? {})
+  const hasTraceEvidence = traceEntries.length > 0
 
   return (
     <section className="font-mono">
@@ -46,11 +48,19 @@ export function SoficcaConsole({ journeyView }: SoficcaConsoleProps) {
 
         {isExpanded && (
           <div className="mt-5">
-            <div className="rounded-xl bg-[#252526] p-5">
-              <pre className="overflow-x-auto text-[12px] leading-relaxed text-[#D4D4D4]">
-                <code>{JSON.stringify(badge.trace_evidence, null, 2)}</code>
-              </pre>
-            </div>
+            {hasTraceEvidence ? (
+              <div className="rounded-xl bg-[#252526] p-5">
+                <pre className="overflow-x-auto text-[12px] leading-relaxed text-[#D4D4D4]">
+                  <code>{JSON.stringify(badge.trace_evidence, null, 2)}</code>
+                </pre>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[#E6DED3] bg-[#FAF7F2] p-4">
+                <p className="font-sans text-xs text-[#5F5A54]">
+                  Trace evidence is unavailable for this journey state.
+                </p>
+              </div>
+            )}
             <p className="mt-4 font-sans text-[11px] leading-relaxed text-[#9A948C]">
               Confirmed patient inputs only. Empty fields omitted under zero-noise policy.
             </p>
