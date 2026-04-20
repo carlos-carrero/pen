@@ -30,9 +30,7 @@ const isTraceEvidenceValue = (value: unknown): value is PenTraceEvidenceValue =>
   }
 
   if (Array.isArray(value)) {
-    return value.every((entry) =>
-      typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean"
-    )
+    return true
   }
 
   if (isRecord(value)) {
@@ -49,6 +47,19 @@ const normalizeTraceEvidence = (
   fallback: PenTraceEvidence,
   preferEmptyObjectWhenInvalid = false
 ): PenTraceEvidence => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? ({ items: value } as PenTraceEvidence) : preferEmptyObjectWhenInvalid ? {} : fallback
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  ) {
+    return { summary: value } as PenTraceEvidence
+  }
+
   if (!isRecord(value)) {
     return preferEmptyObjectWhenInvalid ? {} : fallback
   }
@@ -124,8 +135,20 @@ function normalizeProgressItems(
 
       const rawIcon = item.icon
       const icon = isJourneyIcon(rawIcon) ? rawIcon : "activity"
-      const label = typeof item.label === "string" ? item.label : null
-      const value = typeof item.value === "string" ? item.value : null
+      const label =
+        typeof item.label === "string"
+          ? item.label
+          : typeof item.title === "string"
+            ? item.title
+            : null
+      const value =
+        typeof item.value === "string"
+          ? item.value
+          : typeof item.text === "string"
+            ? item.text
+            : typeof item.status === "string"
+              ? item.status
+              : null
 
       if (!label || !value) {
         return null
@@ -154,9 +177,28 @@ function normalizePhotoSteps(
         return null
       }
 
-      const id = typeof step.id === "string" ? step.id : null
-      const label = typeof step.label === "string" ? step.label : null
-      const unlocked = typeof step.unlocked === "boolean" ? step.unlocked : null
+      const id =
+        typeof step.id === "string"
+          ? step.id
+          : typeof step.key === "string"
+            ? step.key
+            : typeof step.slug === "string"
+              ? step.slug
+              : null
+      const label =
+        typeof step.label === "string"
+          ? step.label
+          : typeof step.title === "string"
+            ? step.title
+            : id
+      const unlocked =
+        typeof step.unlocked === "boolean"
+          ? step.unlocked
+          : typeof step.available === "boolean"
+            ? step.available
+            : typeof step.status === "string"
+              ? ["available", "unlocked", "complete", "completed"].includes(step.status.toLowerCase())
+              : null
 
       if (!id || !label || unlocked === null) {
         return null
@@ -184,6 +226,11 @@ function normalizeJourneyStateView(
   const rawNarrative = isRecord(rawState.narrative) ? rawState.narrative : {}
   const rawRecommendation = isRecord(rawState.recommendation) ? rawState.recommendation : {}
   const rawBadge = isRecord(rawState.decision_trace_badge) ? rawState.decision_trace_badge : {}
+  const rawTrace =
+    rawBadge.trace_evidence ??
+    rawBadge.trace ??
+    rawBadge.evidence ??
+    rawBadge.details
 
   const recommendationIcon = rawRecommendation.icon
   const normalizedRecommendationIcon =
@@ -221,7 +268,7 @@ function normalizeJourneyStateView(
       label: readString(rawBadge.label, sourceFallback.decision_trace_badge.label),
       state_label: readString(rawBadge.state_label, sourceFallback.decision_trace_badge.state_label),
       trace_evidence: normalizeTraceEvidence(
-        rawBadge.trace_evidence,
+        rawTrace,
         sourceFallback.decision_trace_badge.trace_evidence,
         shouldPreferEmptyLiveTrace
       ),

@@ -164,6 +164,81 @@ test("selectJourneyStateView preserves live progress items even when icon is unk
   assert.equal(stateView.progress_strip.items[0]?.icon, "activity")
 })
 
+test("selectJourneyStateView keeps stage-local progress and photo content when fields use compatible aliases", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        week_6: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.week_6,
+          progress_strip: [
+            { title: "Adherence", status: "On track", icon: "unknown" },
+          ],
+          progress_photos: [
+            { key: "week_6", title: "Week 6", status: "completed" },
+          ],
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "week_6")
+
+  assert.equal(stateView.progress_strip.items.length, 1)
+  assert.equal(stateView.progress_strip.items[0]?.label, "Adherence")
+  assert.equal(stateView.progress_strip.items[0]?.value, "On track")
+  assert.equal(stateView.progress_strip.items[0]?.icon, "activity")
+  assert.equal(stateView.progress_photos.steps.length, 1)
+  assert.equal(stateView.progress_photos.steps[0]?.id, "week_6")
+  assert.equal(stateView.progress_photos.steps[0]?.unlocked, true)
+})
+
+test("selectJourneyStateView preserves non-object stage trace content via summary/items wrappers", () => {
+  const arrayTraceResponse = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_3: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_3,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Month 3",
+            trace_evidence: ["signal_a", "signal_b"],
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const scalarTraceResponse = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_6: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_6,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Month 6",
+            trace: "stable_response",
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const month3 = selectJourneyStateView(arrayTraceResponse, "month_3")
+  const month6 = selectJourneyStateView(scalarTraceResponse, "month_6")
+
+  assert.deepEqual(month3.decision_trace_badge.trace_evidence.items, ["signal_a", "signal_b"])
+  assert.equal(month6.decision_trace_badge.trace_evidence.summary, "stable_response")
+})
+
 
 
 test("selectJourneyStateView normalizes hero/narrative/recommendation/badge fields", () => {
