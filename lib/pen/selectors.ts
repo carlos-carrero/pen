@@ -15,6 +15,8 @@ type JourneyIcon = PenJourneyStateView["progress_strip"]["items"][number]["icon"
 type RecommendationIcon = NonNullable<PenJourneyStateView["recommendation"]["icon"]>
 
 type JourneyViewSource = "live" | "fallback"
+type EvaluationViewSource = "live" | "fallback"
+type JourneyTraceSource = "live" | "fallback" | "live_empty"
 
 const isJourneyIcon = (value: unknown): value is JourneyIcon =>
   typeof value === "string" && JOURNEY_ICONS.has(value)
@@ -68,6 +70,94 @@ const readString = (value: unknown, fallback: string): string =>
 
 const readBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback
+
+const humanizeDecisionPath = (value: string): string =>
+  value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+
+const readNestedString = (value: unknown, path: string[]): string | null => {
+  let current: unknown = value
+  for (const key of path) {
+    if (!isRecord(current) || !(key in current)) {
+      return null
+    }
+    current = current[key]
+  }
+
+  return typeof current === "string" && current.trim().length > 0 ? current : null
+}
+
+const deriveLiveJourneyDefaults = (
+  response: PenEvaluateResponse | null,
+  fallback: PenJourneyStateView
+): PenJourneyStateView => {
+  const evaluation = response?.frontend_adapter?.evaluation
+  const decision = isRecord(response?.decision) ? response.decision : null
+
+  const decisionTitle =
+    readNestedString(decision, ["title"]) ??
+    readNestedString(decision, ["decision_title"]) ??
+    (typeof evaluation?.decision_title === "string" && evaluation.decision_title.trim().length > 0
+      ? evaluation.decision_title
+      : null)
+  const decisionExplanation =
+    readNestedString(decision, ["explanation"]) ??
+    readNestedString(decision, ["decision_explanation"]) ??
+    readNestedString(decision, ["decision_rationale", "primary_reason"]) ??
+    (typeof evaluation?.decision_explanation === "string" && evaluation.decision_explanation.trim().length > 0
+      ? evaluation.decision_explanation
+      : null)
+  const decisionPath =
+    readNestedString(decision, ["path"]) ??
+    readNestedString(decision, ["decision_path"]) ??
+    (typeof evaluation?.decision_path === "string" && evaluation.decision_path.trim().length > 0
+      ? evaluation.decision_path
+      : null)
+
+  const recommendation =
+    isRecord(decision?.recommendations) && Array.isArray(decision.recommendations)
+      ? (decision.recommendations.find((entry) => isRecord(entry)) as Record<string, unknown> | undefined)
+      : undefined
+  const recommendationProduct =
+    (typeof recommendation?.title === "string" && recommendation.title.trim().length > 0
+      ? recommendation.title
+      : null) ??
+    (typeof recommendation?.name === "string" && recommendation.name.trim().length > 0
+      ? recommendation.name
+      : null)
+  const recommendationDescription =
+    typeof recommendation?.description === "string" && recommendation.description.trim().length > 0
+      ? recommendation.description
+      : null
+
+  return {
+    hero: {
+      title: decisionTitle ?? "Your plan update",
+      subtitle: decisionExplanation ?? "",
+      start_date: "",
+      next_review: "",
+      active_plan_label: decisionPath ? `Active plan: ${humanizeDecisionPath(decisionPath)}` : "Active plan",
+    },
+    progress_strip: { items: [] },
+    progress_photos: { steps: [] },
+    narrative: {
+      title: decisionTitle ? "Why this plan was selected" : "Current state",
+      text: decisionExplanation ?? "",
+    },
+    recommendation: {
+      show: Boolean(recommendationProduct || recommendationDescription),
+      product: recommendationProduct ?? "",
+      description: recommendationDescription ?? "",
+      icon: undefined,
+    },
+    decision_trace_badge: {
+      label: "Decision trace",
+      state_label: fallback.decision_trace_badge.state_label,
+      trace_evidence: {},
+    },
+  }
+}
 
 function normalizeProgressItems(
   rawProgressStrip: unknown,
@@ -134,11 +224,11 @@ function normalizePhotoSteps(
 
 function normalizeJourneyStateView(
   rawState: unknown,
-  fallback: PenJourneyStateView,
+  sourceFallback: PenJourneyStateView,
   source: JourneyViewSource
 ): PenJourneyStateView {
   if (!isRecord(rawState)) {
-    return fallback
+    return sourceFallback
   }
 
   const rawHero = isRecord(rawState.hero) ? rawState.hero : {}
@@ -150,40 +240,40 @@ function normalizeJourneyStateView(
   const normalizedRecommendationIcon =
     isRecommendationIcon(recommendationIcon)
       ? recommendationIcon
-      : fallback.recommendation.icon
+      : sourceFallback.recommendation.icon
 
   const shouldPreferEmptyLiveTrace = source === "live"
 
   return {
     hero: {
-      title: readString(rawHero.title, fallback.hero.title),
-      subtitle: readString(rawHero.subtitle, fallback.hero.subtitle),
-      start_date: readString(rawHero.start_date, fallback.hero.start_date),
-      next_review: readString(rawHero.next_review, fallback.hero.next_review),
-      active_plan_label: readString(rawHero.active_plan_label, fallback.hero.active_plan_label),
+      title: readString(rawHero.title, sourceFallback.hero.title),
+      subtitle: readString(rawHero.subtitle, sourceFallback.hero.subtitle),
+      start_date: readString(rawHero.start_date, sourceFallback.hero.start_date),
+      next_review: readString(rawHero.next_review, sourceFallback.hero.next_review),
+      active_plan_label: readString(rawHero.active_plan_label, sourceFallback.hero.active_plan_label),
     },
     progress_strip: {
-      items: normalizeProgressItems(rawState.progress_strip, fallback.progress_strip.items),
+      items: normalizeProgressItems(rawState.progress_strip, sourceFallback.progress_strip.items),
     },
     progress_photos: {
-      steps: normalizePhotoSteps(rawState.progress_photos, fallback.progress_photos.steps),
+      steps: normalizePhotoSteps(rawState.progress_photos, sourceFallback.progress_photos.steps),
     },
     narrative: {
-      title: readString(rawNarrative.title, fallback.narrative.title),
-      text: readString(rawNarrative.text, fallback.narrative.text),
+      title: readString(rawNarrative.title, sourceFallback.narrative.title),
+      text: readString(rawNarrative.text, sourceFallback.narrative.text),
     },
     recommendation: {
-      show: readBoolean(rawRecommendation.show, fallback.recommendation.show),
-      product: readString(rawRecommendation.product, fallback.recommendation.product ?? ""),
-      description: readString(rawRecommendation.description, fallback.recommendation.description ?? ""),
+      show: readBoolean(rawRecommendation.show, sourceFallback.recommendation.show),
+      product: readString(rawRecommendation.product, sourceFallback.recommendation.product ?? ""),
+      description: readString(rawRecommendation.description, sourceFallback.recommendation.description ?? ""),
       icon: normalizedRecommendationIcon,
     },
     decision_trace_badge: {
-      label: readString(rawBadge.label, fallback.decision_trace_badge.label),
-      state_label: readString(rawBadge.state_label, fallback.decision_trace_badge.state_label),
+      label: readString(rawBadge.label, sourceFallback.decision_trace_badge.label),
+      state_label: readString(rawBadge.state_label, sourceFallback.decision_trace_badge.state_label),
       trace_evidence: normalizeTraceEvidence(
         rawBadge.trace_evidence,
-        fallback.decision_trace_badge.trace_evidence,
+        sourceFallback.decision_trace_badge.trace_evidence,
         shouldPreferEmptyLiveTrace
       ),
     },
@@ -194,12 +284,30 @@ export function selectEvaluationAdapter(response: PenEvaluateResponse | null): P
   return response?.frontend_adapter?.evaluation ?? fallbackFrontendAdapter.evaluation
 }
 
+export function selectEvaluationViewSource(response: PenEvaluateResponse | null): EvaluationViewSource {
+  return isRecord(response?.frontend_adapter?.evaluation) ? "live" : "fallback"
+}
+
 export function selectJourneyViewSource(
   response: PenEvaluateResponse | null,
   state: PenJourneyStateKey
 ): JourneyViewSource {
   const rawState = response?.frontend_adapter?.journey?.[state]
   return isRecord(rawState) ? "live" : "fallback"
+}
+
+export function selectJourneyTraceSource(
+  response: PenEvaluateResponse | null,
+  state: PenJourneyStateKey
+): JourneyTraceSource {
+  const source = selectJourneyViewSource(response, state)
+  if (source === "fallback") {
+    return "fallback"
+  }
+
+  const rawTrace = response?.frontend_adapter?.journey?.[state]?.decision_trace_badge?.trace_evidence
+  const normalized = normalizeTraceEvidence(rawTrace, {}, true)
+  return Object.keys(normalized).length > 0 ? "live" : "live_empty"
 }
 
 export function selectJourneyStateView(
@@ -209,8 +317,9 @@ export function selectJourneyStateView(
   const fallback = fallbackFrontendAdapter.journey[state]
   const rawState = response?.frontend_adapter?.journey?.[state]
   const source = selectJourneyViewSource(response, state)
+  const sourceFallback = source === "live" ? deriveLiveJourneyDefaults(response, fallback) : fallback
 
-  return normalizeJourneyStateView(rawState, fallback, source)
+  return normalizeJourneyStateView(rawState, sourceFallback, source)
 }
 
 export function getPostIntakePhase(): "evaluation" {

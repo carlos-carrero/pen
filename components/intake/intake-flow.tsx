@@ -35,26 +35,26 @@ export interface IntakeData {
   photosUploaded: boolean
 }
 
-// Canonical demo case prefilled for Route A (stronger incubator version)
+// Neutral intake defaults to avoid biasing repeated runs toward a single canonical route.
 const initialData: IntakeData = {
-  age: "29",
-  norwoodStage: 3,
-  lossNoticed: "1-3 years",
-  lossAreas: ["Temples", "Crown"],
-  mainGoal: "Improve density",
-  highBloodPressure: true,
-  cardiovascular: false,
-  currentMedication: false,
+  age: "",
+  norwoodStage: 0,
+  lossNoticed: "",
+  lossAreas: [],
+  mainGoal: "",
+  highBloodPressure: null,
+  cardiovascular: null,
+  currentMedication: null,
   medicationDetail: "",
-  usedTreatmentBefore: false,
+  usedTreatmentBefore: null,
   whichTreatment: "",
   hadSideEffects: null,
   sideEffectDetail: "",
-  scalpSensitivities: false,
+  scalpSensitivities: null,
   scalpDetail: "",
-  treatmentPreference: "topical",
-  consistencyLevel: "very",
-  priorityFactor: "safety",
+  treatmentPreference: "",
+  consistencyLevel: "",
+  priorityFactor: "",
   photosUploaded: false
 }
 
