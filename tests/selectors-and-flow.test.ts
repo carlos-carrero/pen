@@ -83,9 +83,46 @@ test("selectJourneyStateView keeps live journey sections empty when malformed in
   assert.equal(stateView.progress_photos.steps.length, 0)
 })
 
-test("selectJourneyStateView uses neutral live defaults when live state omits hero and recommendation", () => {
+test("selectJourneyStateView derives useful live defaults from evaluation when live state omits hero and recommendation", () => {
   const response = {
     ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      evaluation: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.evaluation,
+        decision_path: "oral_treatment",
+        decision_title: "Oral route selected",
+        decision_explanation: "Your decision profile favors oral therapy as a practical starting point.",
+      },
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {},
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.hero.title, "Oral route selected")
+  assert.equal(stateView.hero.subtitle, "Your decision profile favors oral therapy as a practical starting point.")
+  assert.equal(stateView.hero.active_plan_label, "Active plan: Oral Treatment")
+  assert.equal(stateView.narrative.text, "Your decision profile favors oral therapy as a practical starting point.")
+  assert.equal(stateView.recommendation.show, false)
+})
+
+test("selectJourneyStateView can derive live defaults from top-level decision payload", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    decision: {
+      path: "combination_route",
+      title: "Combination route selected",
+      decision_rationale: {
+        primary_reason: "Your risk and consistency profile support a combination start.",
+      },
+      recommendations: [
+        { title: "Scalp Support Serum", description: "Supports comfort while your plan ramps up." },
+      ],
+    },
     frontend_adapter: {
       ...canonicalDemoEvaluateResponse.frontend_adapter,
       journey: {
@@ -97,8 +134,14 @@ test("selectJourneyStateView uses neutral live defaults when live state omits he
 
   const stateView = selectJourneyStateView(response, "month_0")
 
-  assert.equal(stateView.hero.active_plan_label, "Active plan: Pending update")
-  assert.equal(stateView.recommendation.show, false)
+  assert.equal(stateView.hero.title, "Combination route selected")
+  assert.equal(stateView.hero.active_plan_label, "Active plan: Combination Route")
+  assert.equal(
+    stateView.narrative.text,
+    "Your risk and consistency profile support a combination start."
+  )
+  assert.equal(stateView.recommendation.show, true)
+  assert.equal(stateView.recommendation.product, "Scalp Support Serum")
 })
 
 
