@@ -143,6 +143,35 @@ function normalizeJourneyStateView(
     return fallback
   }
 
+  const liveDefaults: PenJourneyStateView = {
+    hero: {
+      title: "Your plan update",
+      subtitle: "Your latest plan details are being prepared.",
+      start_date: "—",
+      next_review: "—",
+      active_plan_label: "Active plan: Pending update",
+    },
+    progress_strip: { items: [] },
+    progress_photos: { steps: [] },
+    narrative: {
+      title: "Current state",
+      text: "No journey narrative has been provided for this state yet.",
+    },
+    recommendation: {
+      show: false,
+      product: "",
+      description: "",
+      icon: undefined,
+    },
+    decision_trace_badge: {
+      label: "Decision trace",
+      state_label: fallback.decision_trace_badge.state_label,
+      trace_evidence: {},
+    },
+  }
+
+  const sourceFallback = source === "live" ? liveDefaults : fallback
+
   const rawHero = isRecord(rawState.hero) ? rawState.hero : {}
   const rawNarrative = isRecord(rawState.narrative) ? rawState.narrative : {}
   const rawRecommendation = isRecord(rawState.recommendation) ? rawState.recommendation : {}
@@ -152,40 +181,40 @@ function normalizeJourneyStateView(
   const normalizedRecommendationIcon =
     isRecommendationIcon(recommendationIcon)
       ? recommendationIcon
-      : fallback.recommendation.icon
+      : sourceFallback.recommendation.icon
 
   const shouldPreferEmptyLiveTrace = source === "live"
 
   return {
     hero: {
-      title: readString(rawHero.title, fallback.hero.title),
-      subtitle: readString(rawHero.subtitle, fallback.hero.subtitle),
-      start_date: readString(rawHero.start_date, fallback.hero.start_date),
-      next_review: readString(rawHero.next_review, fallback.hero.next_review),
-      active_plan_label: readString(rawHero.active_plan_label, fallback.hero.active_plan_label),
+      title: readString(rawHero.title, sourceFallback.hero.title),
+      subtitle: readString(rawHero.subtitle, sourceFallback.hero.subtitle),
+      start_date: readString(rawHero.start_date, sourceFallback.hero.start_date),
+      next_review: readString(rawHero.next_review, sourceFallback.hero.next_review),
+      active_plan_label: readString(rawHero.active_plan_label, sourceFallback.hero.active_plan_label),
     },
     progress_strip: {
-      items: normalizeProgressItems(rawState.progress_strip, fallback.progress_strip.items),
+      items: normalizeProgressItems(rawState.progress_strip, sourceFallback.progress_strip.items),
     },
     progress_photos: {
-      steps: normalizePhotoSteps(rawState.progress_photos, fallback.progress_photos.steps),
+      steps: normalizePhotoSteps(rawState.progress_photos, sourceFallback.progress_photos.steps),
     },
     narrative: {
-      title: readString(rawNarrative.title, fallback.narrative.title),
-      text: readString(rawNarrative.text, fallback.narrative.text),
+      title: readString(rawNarrative.title, sourceFallback.narrative.title),
+      text: readString(rawNarrative.text, sourceFallback.narrative.text),
     },
     recommendation: {
-      show: readBoolean(rawRecommendation.show, fallback.recommendation.show),
-      product: readString(rawRecommendation.product, fallback.recommendation.product ?? ""),
-      description: readString(rawRecommendation.description, fallback.recommendation.description ?? ""),
+      show: readBoolean(rawRecommendation.show, sourceFallback.recommendation.show),
+      product: readString(rawRecommendation.product, sourceFallback.recommendation.product ?? ""),
+      description: readString(rawRecommendation.description, sourceFallback.recommendation.description ?? ""),
       icon: normalizedRecommendationIcon,
     },
     decision_trace_badge: {
-      label: readString(rawBadge.label, fallback.decision_trace_badge.label),
-      state_label: readString(rawBadge.state_label, fallback.decision_trace_badge.state_label),
+      label: readString(rawBadge.label, sourceFallback.decision_trace_badge.label),
+      state_label: readString(rawBadge.state_label, sourceFallback.decision_trace_badge.state_label),
       trace_evidence: normalizeTraceEvidence(
         rawBadge.trace_evidence,
-        fallback.decision_trace_badge.trace_evidence,
+        sourceFallback.decision_trace_badge.trace_evidence,
         shouldPreferEmptyLiveTrace
       ),
     },

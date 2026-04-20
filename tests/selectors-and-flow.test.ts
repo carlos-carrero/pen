@@ -61,7 +61,7 @@ test("selectJourneyStateView normalizes array-style progress sections from live 
   assert.equal(stateView.progress_photos.steps.length, 2)
 })
 
-test("selectJourneyStateView falls back on malformed journey sections", () => {
+test("selectJourneyStateView keeps live journey sections empty when malformed instead of injecting fallback", () => {
   const response = {
     ...canonicalDemoEvaluateResponse,
     frontend_adapter: {
@@ -79,8 +79,26 @@ test("selectJourneyStateView falls back on malformed journey sections", () => {
 
   const stateView = selectJourneyStateView(response, "month_0")
 
-  assert.equal(stateView.progress_strip.items.length > 0, true)
-  assert.equal(stateView.progress_photos.steps.length > 0, true)
+  assert.equal(stateView.progress_strip.items.length, 0)
+  assert.equal(stateView.progress_photos.steps.length, 0)
+})
+
+test("selectJourneyStateView uses neutral live defaults when live state omits hero and recommendation", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {},
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.hero.active_plan_label, "Active plan: Pending update")
+  assert.equal(stateView.recommendation.show, false)
 })
 
 
