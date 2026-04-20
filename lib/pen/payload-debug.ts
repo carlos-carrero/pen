@@ -2,6 +2,7 @@ import type { IntakeData } from "../../components/intake/intake-flow"
 import type { PenEvaluateRequest, PenEvaluateResponse, PenTraceEvidence } from "./contracts"
 
 export const BRANCH_DRIVING_FIELDS = [
+  "high_blood_pressure",
   "cardiovascular_conditions",
   "prior_treatment_use",
   "had_side_effects",
@@ -23,6 +24,7 @@ type BranchSnapshot = Record<BranchDrivingField, unknown>
 
 export function getBranchSnapshotFromIntake(data: IntakeData): BranchSnapshot {
   return {
+    high_blood_pressure: data.highBloodPressure,
     cardiovascular_conditions: data.cardiovascular,
     prior_treatment_use: data.usedTreatmentBefore,
     had_side_effects: data.hadSideEffects,
@@ -35,6 +37,7 @@ export function getBranchSnapshotFromIntake(data: IntakeData): BranchSnapshot {
 
 export function getBranchSnapshotFromRequest(request: PenEvaluateRequest): BranchSnapshot {
   return {
+    high_blood_pressure: request.high_blood_pressure,
     cardiovascular_conditions: request.cardiovascular_conditions,
     prior_treatment_use: request.prior_treatment_use,
     had_side_effects: request.had_side_effects,
@@ -68,6 +71,7 @@ export function getBranchSnapshotFromTrace(response: PenEvaluateResponse): Branc
   const trace = response.frontend_adapter?.evaluation?.trace_evidence
 
   return {
+    high_blood_pressure: readTraceValue(trace, "high_blood_pressure"),
     cardiovascular_conditions: readTraceValue(trace, "cardiovascular_conditions"),
     prior_treatment_use: readTraceValue(trace, "prior_treatment_use"),
     had_side_effects: readTraceValue(trace, "had_side_effects"),

@@ -5,7 +5,9 @@ import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
+  selectEvaluationViewSource,
   selectJourneyStateView,
+  selectJourneyTraceSource,
   selectJourneyViewSource
 } from "../lib/pen/selectors"
 import { buildEvaluationViewModel } from "../lib/pen/evaluation-view"
@@ -15,6 +17,11 @@ test("selectEvaluationAdapter reads frontend_adapter.evaluation", () => {
   const adapter = selectEvaluationAdapter(canonicalDemoEvaluateResponse)
 
   assert.equal(adapter.decision_path, canonicalDemoEvaluateResponse.frontend_adapter.evaluation.decision_path)
+})
+
+test("selectEvaluationViewSource marks adapter presence accurately", () => {
+  assert.equal(selectEvaluationViewSource(canonicalDemoEvaluateResponse), "live")
+  assert.equal(selectEvaluationViewSource(null), "fallback")
 })
 
 test("selectJourneyStateView reads correct state from frontend_adapter.journey", () => {
@@ -54,7 +61,7 @@ test("selectJourneyStateView normalizes array-style progress sections from live 
   assert.equal(stateView.progress_photos.steps.length, 2)
 })
 
-test("selectJourneyStateView falls back on malformed journey sections", () => {
+test("selectJourneyStateView keeps live journey sections empty when malformed instead of injecting fallback", () => {
   const response = {
     ...canonicalDemoEvaluateResponse,
     frontend_adapter: {
@@ -72,8 +79,164 @@ test("selectJourneyStateView falls back on malformed journey sections", () => {
 
   const stateView = selectJourneyStateView(response, "month_0")
 
-  assert.equal(stateView.progress_strip.items.length > 0, true)
-  assert.equal(stateView.progress_photos.steps.length > 0, true)
+  assert.equal(stateView.progress_strip.items.length, 0)
+  assert.equal(stateView.progress_photos.steps.length, 0)
+})
+
+test("selectJourneyStateView does not reconstruct empty live stages from global evaluation fields", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      evaluation: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.evaluation,
+        decision_path: "oral_treatment",
+        decision_title: "Oral route selected",
+        decision_explanation: "Your decision profile favors oral therapy as a practical starting point.",
+      },
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {},
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.hero.title, "Your plan update")
+  assert.equal(stateView.hero.subtitle, "")
+  assert.equal(stateView.hero.active_plan_label, "Active plan")
+  assert.equal(stateView.narrative.text, "")
+  assert.equal(stateView.recommendation.show, false)
+})
+
+test("selectJourneyStateView does not reconstruct empty live stages from top-level decision payload", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    decision: {
+      path: "combination_route",
+      title: "Combination route selected",
+      decision_rationale: {
+        primary_reason: "Your risk and consistency profile support a combination start.",
+      },
+      recommendations: [
+        { title: "Scalp Support Serum", description: "Supports comfort while your plan ramps up." },
+      ],
+    },
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {},
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.hero.title, "Your plan update")
+  assert.equal(stateView.hero.active_plan_label, "Active plan")
+  assert.equal(stateView.narrative.text, "")
+  assert.equal(stateView.recommendation.show, false)
+  assert.equal(stateView.recommendation.product, "")
+})
+
+test("selectJourneyStateView preserves live progress items even when icon is unknown", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_0: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_0,
+          progress_strip: [{ label: "Plan status", value: "Activated", icon: "custom_icon" }],
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "month_0")
+
+  assert.equal(stateView.progress_strip.items.length, 1)
+  assert.equal(stateView.progress_strip.items[0]?.label, "Plan status")
+  assert.equal(stateView.progress_strip.items[0]?.value, "Activated")
+  assert.equal(stateView.progress_strip.items[0]?.icon, "activity")
+})
+
+test("selectJourneyStateView keeps stage-local progress and photo content when fields use compatible aliases", () => {
+  const response = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        week_6: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.week_6,
+          progress_strip: [
+            { title: "Adherence", status: "On track", icon: "unknown" },
+          ],
+          progress_photos: [
+            { key: "week_6", title: "Week 6", status: "completed" },
+          ],
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const stateView = selectJourneyStateView(response, "week_6")
+
+  assert.equal(stateView.progress_strip.items.length, 1)
+  assert.equal(stateView.progress_strip.items[0]?.label, "Adherence")
+  assert.equal(stateView.progress_strip.items[0]?.value, "On track")
+  assert.equal(stateView.progress_strip.items[0]?.icon, "activity")
+  assert.equal(stateView.progress_photos.steps.length, 1)
+  assert.equal(stateView.progress_photos.steps[0]?.id, "week_6")
+  assert.equal(stateView.progress_photos.steps[0]?.unlocked, true)
+})
+
+test("selectJourneyStateView preserves non-object stage trace content via summary/items wrappers", () => {
+  const arrayTraceResponse = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_3: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_3,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Month 3",
+            trace_evidence: ["signal_a", "signal_b"],
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const scalarTraceResponse = {
+    ...canonicalDemoEvaluateResponse,
+    frontend_adapter: {
+      ...canonicalDemoEvaluateResponse.frontend_adapter,
+      journey: {
+        ...canonicalDemoEvaluateResponse.frontend_adapter.journey,
+        month_6: {
+          ...canonicalDemoEvaluateResponse.frontend_adapter.journey.month_6,
+          decision_trace_badge: {
+            label: "Decision trace",
+            state_label: "Month 6",
+            trace: "stable_response",
+          },
+        },
+      },
+    },
+  } as unknown as PenEvaluateResponse
+
+  const month3 = selectJourneyStateView(arrayTraceResponse, "month_3")
+  const month6 = selectJourneyStateView(scalarTraceResponse, "month_6")
+
+  assert.deepEqual(month3.decision_trace_badge.trace_evidence.items, ["signal_a", "signal_b"])
+  assert.equal(month6.decision_trace_badge.trace_evidence.summary, "stable_response")
 })
 
 
@@ -278,4 +441,10 @@ test("selectJourneyStateView does not inject canonical fallback trace evidence w
   const stateView = selectJourneyStateView(response, "month_0")
 
   assert.deepEqual(stateView.decision_trace_badge.trace_evidence, {})
+  assert.equal(selectJourneyTraceSource(response, "month_0"), "live_empty")
+})
+
+test("selectJourneyTraceSource marks fallback and live trace payloads", () => {
+  assert.equal(selectJourneyTraceSource(null, "month_0"), "fallback")
+  assert.equal(selectJourneyTraceSource(canonicalDemoEvaluateResponse, "month_0"), "live")
 })
