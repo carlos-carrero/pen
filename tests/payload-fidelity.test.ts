@@ -21,6 +21,7 @@ const scenarios: Scenario[] = [
     name: "canonical hypertension case",
     updates: {},
     expectedRequest: {
+      high_blood_pressure: true,
       cardiovascular_conditions: false,
       prior_treatment_use: false,
       had_side_effects: false,
@@ -31,9 +32,9 @@ const scenarios: Scenario[] = [
     },
   },
   {
-    name: "cardiovascular conditions true",
-    updates: { cardiovascular: true },
-    expectedRequest: { cardiovascular_conditions: true },
+    name: "high blood pressure false with cardiovascular conditions true",
+    updates: { highBloodPressure: false, cardiovascular: true },
+    expectedRequest: { high_blood_pressure: false, cardiovascular_conditions: true },
   },
   {
     name: "prior treatment true with side effects true",
@@ -88,8 +89,10 @@ test("branch snapshot helper reads intake and request shapes consistently", () =
   const request = mapIntakeToPenEvaluateRequest(intake)
 
   assert.equal(getBranchSnapshotFromIntake(intake).cardiovascular_conditions, true)
+  assert.equal(getBranchSnapshotFromIntake(intake).high_blood_pressure, true)
   assert.equal(getBranchSnapshotFromIntake(intake).treatment_preference, "oral")
   assert.equal(getBranchSnapshotFromRequest(request).cardiovascular_conditions, true)
+  assert.equal(getBranchSnapshotFromRequest(request).high_blood_pressure, true)
   assert.equal(getBranchSnapshotFromRequest(request).treatment_preference, "oral")
 })
 
@@ -102,6 +105,7 @@ test("branch snapshot helper reads evaluation trace evidence aliases", () => {
         ...canonicalDemoEvaluateResponse.frontend_adapter.evaluation,
         trace_evidence: {
           cardiovascular_conditions: false,
+          high_blood_pressure: false,
           used_treatment_before: true,
           experienced_side_effects: true,
           scalp_sensitivity: false,
@@ -116,6 +120,7 @@ test("branch snapshot helper reads evaluation trace evidence aliases", () => {
   const trace = getBranchSnapshotFromTrace(response)
 
   assert.equal(trace.cardiovascular_conditions, false)
+  assert.equal(trace.high_blood_pressure, false)
   assert.equal(trace.prior_treatment_use, true)
   assert.equal(trace.had_side_effects, true)
   assert.equal(trace.scalp_sensitivities, false)
