@@ -5,7 +5,9 @@ import {
   getInitialJourneyState,
   getPostIntakePhase,
   selectEvaluationAdapter,
+  selectEvaluationViewSource,
   selectJourneyStateView,
+  selectJourneyTraceSource,
   selectJourneyViewSource
 } from "../lib/pen/selectors"
 import { buildEvaluationViewModel } from "../lib/pen/evaluation-view"
@@ -15,6 +17,11 @@ test("selectEvaluationAdapter reads frontend_adapter.evaluation", () => {
   const adapter = selectEvaluationAdapter(canonicalDemoEvaluateResponse)
 
   assert.equal(adapter.decision_path, canonicalDemoEvaluateResponse.frontend_adapter.evaluation.decision_path)
+})
+
+test("selectEvaluationViewSource marks adapter presence accurately", () => {
+  assert.equal(selectEvaluationViewSource(canonicalDemoEvaluateResponse), "live")
+  assert.equal(selectEvaluationViewSource(null), "fallback")
 })
 
 test("selectJourneyStateView reads correct state from frontend_adapter.journey", () => {
@@ -278,4 +285,10 @@ test("selectJourneyStateView does not inject canonical fallback trace evidence w
   const stateView = selectJourneyStateView(response, "month_0")
 
   assert.deepEqual(stateView.decision_trace_badge.trace_evidence, {})
+  assert.equal(selectJourneyTraceSource(response, "month_0"), "live_empty")
+})
+
+test("selectJourneyTraceSource marks fallback and live trace payloads", () => {
+  assert.equal(selectJourneyTraceSource(null, "month_0"), "fallback")
+  assert.equal(selectJourneyTraceSource(canonicalDemoEvaluateResponse, "month_0"), "live")
 })

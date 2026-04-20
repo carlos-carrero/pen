@@ -15,6 +15,8 @@ type JourneyIcon = PenJourneyStateView["progress_strip"]["items"][number]["icon"
 type RecommendationIcon = NonNullable<PenJourneyStateView["recommendation"]["icon"]>
 
 type JourneyViewSource = "live" | "fallback"
+type EvaluationViewSource = "live" | "fallback"
+type JourneyTraceSource = "live" | "fallback" | "live_empty"
 
 const isJourneyIcon = (value: unknown): value is JourneyIcon =>
   typeof value === "string" && JOURNEY_ICONS.has(value)
@@ -194,12 +196,30 @@ export function selectEvaluationAdapter(response: PenEvaluateResponse | null): P
   return response?.frontend_adapter?.evaluation ?? fallbackFrontendAdapter.evaluation
 }
 
+export function selectEvaluationViewSource(response: PenEvaluateResponse | null): EvaluationViewSource {
+  return isRecord(response?.frontend_adapter?.evaluation) ? "live" : "fallback"
+}
+
 export function selectJourneyViewSource(
   response: PenEvaluateResponse | null,
   state: PenJourneyStateKey
 ): JourneyViewSource {
   const rawState = response?.frontend_adapter?.journey?.[state]
   return isRecord(rawState) ? "live" : "fallback"
+}
+
+export function selectJourneyTraceSource(
+  response: PenEvaluateResponse | null,
+  state: PenJourneyStateKey
+): JourneyTraceSource {
+  const source = selectJourneyViewSource(response, state)
+  if (source === "fallback") {
+    return "fallback"
+  }
+
+  const rawTrace = response?.frontend_adapter?.journey?.[state]?.decision_trace_badge?.trace_evidence
+  const normalized = normalizeTraceEvidence(rawTrace, {}, true)
+  return Object.keys(normalized).length > 0 ? "live" : "live_empty"
 }
 
 export function selectJourneyStateView(
