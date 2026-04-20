@@ -220,6 +220,8 @@ function normalizeJourneyStateView(
     return sourceFallback
   }
 
+  const sourceFallback = source === "live" ? liveDefaults : fallback
+
   const rawHero = isRecord(rawState.hero) ? rawState.hero : {}
   const rawNarrative = isRecord(rawState.narrative) ? rawState.narrative : {}
   const rawRecommendation = isRecord(rawState.recommendation) ? rawState.recommendation : {}
