@@ -9,7 +9,7 @@ import type {
 import { fallbackFrontendAdapter } from "./fallback-adapter"
 
 const JOURNEY_ICONS = new Set(["activity", "calendar", "trending", "check", "camera", "target"])
-const RECOMMENDATION_ICONS = new Set(["droplets", "sparkles", "package", "leaf"])
+const RECOMMENDATION_ICONS = new Set(["droplets", "sparkles", "package", "leaf", "pill"])
 
 type JourneyIcon = PenJourneyStateView["progress_strip"]["items"][number]["icon"]
 type RecommendationIcon = NonNullable<PenJourneyStateView["recommendation"]["icon"]>
@@ -108,6 +108,7 @@ const deriveLiveStageFallback = (rawState: unknown, fallback: PenJourneyStateVie
       product: readString(rawRecommendation.product, ""),
       description: readString(rawRecommendation.description, ""),
       icon: undefined,
+      details: undefined,
     },
     decision_trace_badge: {
       label: readString(rawBadge.label, "Decision trace"),
@@ -220,8 +221,6 @@ function normalizeJourneyStateView(
     return sourceFallback
   }
 
-  const sourceFallback = source === "live" ? liveDefaults : fallback
-
   const rawHero = isRecord(rawState.hero) ? rawState.hero : {}
   const rawNarrative = isRecord(rawState.narrative) ? rawState.narrative : {}
   const rawRecommendation = isRecord(rawState.recommendation) ? rawState.recommendation : {}
@@ -263,6 +262,15 @@ function normalizeJourneyStateView(
       product: readString(rawRecommendation.product, sourceFallback.recommendation.product ?? ""),
       description: readString(rawRecommendation.description, sourceFallback.recommendation.description ?? ""),
       icon: normalizedRecommendationIcon,
+      requires_medical_approval: readBoolean(rawRecommendation.requires_medical_approval, false),
+      details: isRecord(rawRecommendation.details) ? {
+        route: readString(rawRecommendation.details.route, ""),
+        cadence: readString(rawRecommendation.details.cadence, ""),
+        purpose: readString(rawRecommendation.details.purpose, ""),
+        review_note: typeof rawRecommendation.details.review_note === "string"
+          ? rawRecommendation.details.review_note
+          : null,
+      } : undefined,
     },
     decision_trace_badge: {
       label: readString(rawBadge.label, sourceFallback.decision_trace_badge.label),

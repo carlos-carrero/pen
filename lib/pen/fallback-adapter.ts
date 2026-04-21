@@ -55,7 +55,8 @@ export const fallbackFrontendAdapter: PenFrontendAdapter = {
         product: "Starter Scalp Support",
         description:
           "Chosen to complement your topical routine from the beginning and support comfort during early treatment.",
-        icon: "leaf"
+        icon: "leaf",
+        requires_medical_approval: false
       },
       decision_trace_badge: {
         label: "Decision trace",
@@ -99,7 +100,8 @@ export const fallbackFrontendAdapter: PenFrontendAdapter = {
         show: true,
         product: "Calming Scalp Serum",
         description: "Chosen to complement your topical routine and support scalp comfort during early treatment.",
-        icon: "droplets"
+        icon: "droplets",
+        requires_medical_approval: false
       },
       decision_trace_badge: {
         label: "Decision trace",
@@ -141,7 +143,8 @@ export const fallbackFrontendAdapter: PenFrontendAdapter = {
         show: true,
         product: "Scalp Support Formula",
         description: "Selected to support consistency and help optimize your current topical routine.",
-        icon: "sparkles"
+        icon: "sparkles",
+        requires_medical_approval: false
       },
       decision_trace_badge: {
         label: "Decision trace",
@@ -183,7 +186,8 @@ export const fallbackFrontendAdapter: PenFrontendAdapter = {
         show: true,
         product: "Hair Maintenance Kit",
         description: "Designed to help sustain your long-term results and support ongoing topical treatment.",
-        icon: "package"
+        icon: "package",
+        requires_medical_approval: false
       },
       decision_trace_badge: {
         label: "Decision trace",

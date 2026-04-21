@@ -76,7 +76,14 @@ export interface PenJourneyStateView {
     show: boolean
     product?: string
     description?: string
-    icon?: "droplets" | "sparkles" | "package" | "leaf"
+    icon?: "droplets" | "sparkles" | "package" | "leaf" | "pill"
+    requires_medical_approval?: boolean
+    details?: {
+      route: string
+      cadence: string
+      purpose: string
+      review_note?: string | null
+    }
   }
   decision_trace_badge: {
     label: string
