@@ -16,6 +16,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'Pen - Tu Clínica Digital',
   description: 'Plataforma de cuidado personalizado impulsada por Soficca',
+  icons: { icon: '/favicon.png' },
 }
 
 export default function RootLayout({
